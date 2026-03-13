@@ -10,7 +10,7 @@ from streamlit_option_menu import option_menu
 API_KEY = API_KEY = st.secrets["GROQ_API_KEY"]
 
 # 1. Configuration de la page
-st.set_page_config(page_title="GlutenFree App", page_icon="🍞", layout="wide")
+st.set_page_config(page_title="GlutenFree App", page_icon="images/logo/logo_titre.png", layout="wide")
 
 # 2. Sidebar (LOGO LOCAL & COULEURS)
 with st.sidebar:
