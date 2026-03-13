@@ -1,10 +1,16 @@
-﻿import requests
+﻿from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+import requests
+
+Product = Dict[str, Any]
 
 
 class OpenFoodFactsAPI:
     BASE_URL = "https://world.openfoodfacts.org"
 
-    def search_products(self, name):
+    def search_products(self, name: str) -> List[Product]:
         try:
             url = f"{self.BASE_URL}/cgi/search.pl"
             params = {
@@ -21,7 +27,7 @@ class OpenFoodFactsAPI:
         except Exception:
             return []
 
-    def search_product_by_code(self, code):
+    def search_product_by_code(self, code: str) -> Optional[Product]:
         try:
             url = f"{self.BASE_URL}/api/v0/product/{code}.json"
             data = requests.get(url).json()
@@ -29,7 +35,7 @@ class OpenFoodFactsAPI:
         except Exception:
             return None
 
-    def find_gluten_free_alternatives(self, category):
+    def find_gluten_free_alternatives(self, category: str) -> List[Product]:
         try:
             url = f"{self.BASE_URL}/cgi/search.pl"
             params = {

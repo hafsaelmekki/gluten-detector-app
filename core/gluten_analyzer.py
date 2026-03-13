@@ -1,13 +1,21 @@
-﻿from groq import Groq
+﻿from __future__ import annotations
+
+from typing import Any, Dict, Optional
+
+from groq import Groq
+
+Product = Dict[str, Any]
 
 
 class GlutenAnalyzerLLM:
-    def __init__(self, api_key, model="llama-3.3-70b-versatile"):
+    def __init__(
+        self, api_key: Optional[str], model: str = "llama-3.3-70b-versatile"
+    ) -> None:
         self.api_key = api_key
         self.model = model
         self.client = Groq(api_key=api_key) if api_key else None
 
-    def analyze_product(self, product):
+    def analyze_product(self, product: Product) -> str:
         if not self.client:
             return "⚠️ Erreur clé API"
         score = product.get("nutriscore_grade", "Inconnu").upper()
@@ -36,7 +44,7 @@ class GlutenAnalyzerLLM:
         except Exception as exc:
             return f"Erreur : {exc}"
 
-    def generate_recipe(self, mode, input_text):
+    def generate_recipe(self, mode: str, input_text: str) -> str:
         if not self.client:
             return "⚠️ Erreur clé API"
         system_prompt = (

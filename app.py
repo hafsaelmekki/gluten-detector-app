@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 
 from core import AppUI, FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
 
@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 
-def main():
+def main() -> None:
     api_client = OpenFoodFactsAPI()
     scanner = FoodScanner()
     analyzer = GlutenAnalyzerLLM(API_KEY)

@@ -1,17 +1,34 @@
-﻿import re
+﻿from __future__ import annotations
+
+import re
+from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 from streamlit_option_menu import option_menu
+
+if TYPE_CHECKING:
+    from .food_scanner import FoodScanner
+    from .gluten_analyzer import GlutenAnalyzerLLM
+    from .openfoodfacts_api import OpenFoodFactsAPI
+
+Product = Dict[str, Any]
 
 
 class AppUI:
-    def __init__(self, api_client, scanner, analyzer, api_key_present):
+    def __init__(
+        self,
+        api_client: OpenFoodFactsAPI,
+        scanner: FoodScanner,
+        analyzer: GlutenAnalyzerLLM,
+        api_key_present: bool,
+    ) -> None:
         self.api = api_client
         self.scanner = scanner
         self.analyzer = analyzer
         self.api_key_present = api_key_present
 
-    def init_session(self):
+    def init_session(self) -> None:
         defaults = {
             "produit_actuel": None,
             "analyse_actuelle": None,
@@ -24,7 +41,7 @@ class AppUI:
         for key, value in defaults.items():
             st.session_state.setdefault(key, value)
 
-    def render_sidebar(self):
+    def render_sidebar(self) -> str:
         with st.sidebar:
             try:
                 st.image(
@@ -63,9 +80,9 @@ class AppUI:
                 st.success("✅ Clé API connectée")
             else:
                 st.error("❌ Clé API manquante")
-            return choix_section
+        return choix_section
 
-    def render(self):
+    def render(self) -> None:
         self.init_session()
         choix_section = self.render_sidebar()
         if choix_section == "Scanner & Analyse":
@@ -73,7 +90,7 @@ class AppUI:
         else:
             self.render_recipes_section()
 
-    def render_scanner_section(self):
+    def render_scanner_section(self) -> None:
         st.title("🔎 Scanner de Produits")
         st.markdown(
             """
@@ -90,14 +107,14 @@ class AppUI:
         tab1, tab2 = st.tabs(["⌨️ Recherche Texte", "📸 Code-Barres"])
         self.render_text_search_tab(tab1)
         self.render_barcode_tab(tab2)
-        produit = st.session_state.produit_actuel
+        produit: Optional[Product] = st.session_state.produit_actuel
         if produit:
             self.render_product_details(produit)
 
-    def render_text_search_tab(self, container):
+    def render_text_search_tab(self, container: DeltaGenerator) -> None:
         with container:
             col1, col2 = st.columns([3, 1])
-            query = col1.text_input("Nom", key="search_query")
+            query: str = col1.text_input("Nom", key="search_query")
             trigger_search = col2.button("Chercher")
             should_search = (trigger_search and query) or (
                 query and st.session_state.get("last_search") != query
@@ -106,9 +123,11 @@ class AppUI:
                 results = self.api.search_products(query)
                 st.session_state.resultats_recherche = results
                 st.session_state.last_search = query
-            results = st.session_state.get("resultats_recherche")
+            results: Optional[List[Product]] = st.session_state.get(
+                "resultats_recherche"
+            )
             if results:
-                options = {
+                options: Dict[str, Product] = {
                     f"{p['product_name']} ({p.get('brands', '')})": p
                     for p in results
                 }
@@ -119,7 +138,7 @@ class AppUI:
                     st.session_state.alternatives_trouvees = None
                     st.rerun()
 
-    def render_barcode_tab(self, container):
+    def render_barcode_tab(self, container: DeltaGenerator) -> None:
         with container:
             mode = st.radio("Source :", ["Webcam", "Fichier"], horizontal=True)
             image = (
@@ -143,9 +162,9 @@ class AppUI:
                 else:
                     st.error("Impossible de décoder l'image")
 
-    def render_product_details(self, product):
+    def render_product_details(self, product: Product) -> None:
         st.divider()
-        analyse = st.session_state.analyse_actuelle
+        analyse: Optional[str] = st.session_state.analyse_actuelle
         if analyse:
             titre = analyse.split("\n")[0].replace("###", "").strip()
             if "🔴" in titre:
@@ -201,14 +220,19 @@ class AppUI:
         if st.session_state.alternatives_trouvees:
             st.divider()
             st.markdown("### ✨ Meilleures alternatives Sans Gluten :")
-            cols = st.columns(3)
+            cols: Sequence[DeltaGenerator] = st.columns(3)
             for i, alt in enumerate(st.session_state.alternatives_trouvees):
+                if i >= len(cols):
+                    break
                 with cols[i]:
                     if alt.get("image_front_small_url"):
-                        st.image(alt.get("image_front_small_url"), width=100)
+                        st.image(
+                            alt.get("image_front_small_url"),
+                            width=100,
+                        )
                     st.write(f"**{alt.get('product_name')}**")
 
-    def render_recipes_section(self):
+    def render_recipes_section(self) -> None:
         st.title("👨‍🍳 Le Chef Sans Gluten")
         mode_cuisine = st.radio(
             "Option :",
