@@ -1,0 +1,6 @@
+streamlit==1.32.0
+requests==2.31.0
+groq==0.4.2
+Pillow==10.2.0
+pyzbar==0.1.9
+streamlit-option-menu==0.3.12
