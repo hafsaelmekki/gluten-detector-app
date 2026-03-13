@@ -4,7 +4,11 @@ from core import AppUI, FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
 
 API_KEY = st.secrets["GROQ_API_KEY"]
 
-st.set_page_config(page_title="GlutenFree App", page_icon="images/logo/logo_titre.png", layout="wide")
+st.set_page_config(
+    page_title="GlutenFree App",
+    page_icon="images/logo/logo_titre.png",
+    layout="wide",
+)
 
 
 def main():

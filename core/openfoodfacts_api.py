@@ -15,7 +15,9 @@ class OpenFoodFactsAPI:
                 "page_size": 20,
             }
             data = requests.get(url, params=params).json()
-            return [p for p in data.get("products", []) if p.get("product_name")]
+            return [
+                p for p in data.get("products", []) if p.get("product_name")
+            ]
         except Exception:
             return []
 

@@ -27,7 +27,9 @@ class AppUI:
     def render_sidebar(self):
         with st.sidebar:
             try:
-                st.image("images/logo/logo_titre.png", use_container_width=True)
+                st.image(
+                    "images/logo/logo_titre.png", use_container_width=True
+                )
             except Exception:
                 st.warning("⚠️ Logo introuvable (images/logo/logo_titre.png)")
                 st.caption("Placez votre image dans le bon dossier.")
@@ -76,7 +78,8 @@ class AppUI:
         st.markdown(
             """
             <style>
-                .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+                .stTabs [data-baseweb="tab-list"]
+                button[aria-selected="true"] {
                     background-color: #84bf78 !important;
                     color: white !important;
                 }
@@ -106,7 +109,8 @@ class AppUI:
             results = st.session_state.get("resultats_recherche")
             if results:
                 options = {
-                    f"{p['product_name']} ({p.get('brands', '')})": p for p in results
+                    f"{p['product_name']} ({p.get('brands', '')})": p
+                    for p in results
                 }
                 choix = st.selectbox("Sélectionnez :", list(options.keys()))
                 if st.button("✅ Valider"):
@@ -165,9 +169,13 @@ class AppUI:
                     with st.spinner("Analyse..."):
                         analyse = self.analyzer.analyze_product(product)
                         st.session_state.analyse_actuelle = analyse
-                        match = re.search(r"SEARCH_TERM:\s*(.*)", analyse or "")
+                        match = re.search(
+                            r"SEARCH_TERM:\s*(.*)", analyse or ""
+                        )
                         st.session_state.alternatives_trouvees = (
-                            self.api.find_gluten_free_alternatives(match.group(1).strip())
+                            self.api.find_gluten_free_alternatives(
+                                match.group(1).strip()
+                            )
                             if match
                             else None
                         )
@@ -177,7 +185,10 @@ class AppUI:
             if score:
                 st.markdown("**Nutri-Score :**")
                 st.image(
-                    f"https://static.openfoodfacts.org/images/misc/nutriscore-{score}.svg",
+                    (
+                        "https://static.openfoodfacts.org/images/misc/"
+                        f"nutriscore-{score}.svg"
+                    ),
                     width=100,
                 )
         if st.session_state.analyse_actuelle:
@@ -200,7 +211,9 @@ class AppUI:
     def render_recipes_section(self):
         st.title("👨‍🍳 Le Chef Sans Gluten")
         mode_cuisine = st.radio(
-            "Option :", ["✨ Créer une recette", "🔄 Adapter une recette"], horizontal=True
+            "Option :",
+            ["✨ Créer une recette", "🔄 Adapter une recette"],
+            horizontal=True,
         )
         st.divider()
         if mode_cuisine == "✨ Créer une recette":
@@ -208,15 +221,15 @@ class AppUI:
             plat = col1.text_input("Plat souhaité")
             if col2.button("🍳 Générer") and plat:
                 with st.spinner("Création..."):
-                    st.session_state.recette_generee = self.analyzer.generate_recipe(
-                        "creation", plat
+                    st.session_state.recette_generee = (
+                        self.analyzer.generate_recipe("creation", plat)
                     )
         else:
             texte = st.text_area("Collez votre recette ici :")
             if st.button("✨ Transformer") and texte:
                 with st.spinner("Adaptation..."):
-                    st.session_state.recette_generee = self.analyzer.generate_recipe(
-                        "adaptation", texte
+                    st.session_state.recette_generee = (
+                        self.analyzer.generate_recipe("adaptation", texte)
                     )
         if st.session_state.recette_generee:
             st.markdown("---")

@@ -21,7 +21,9 @@ class GlutenAnalyzerLLM:
         1. Si INTERDIT (Blé, Orge, Seigle...) -> "🔴 CONTIENT DU GLUTEN".
         2. Si RISQUE (Avoine, Traces...) -> "⚠️ RISQUE (Traces/Contamination)".
         3. Si OK -> "🟢 SANS GLUTEN".
-        IMPORTANT : Si ROUGE ou ORANGE, ajoute à la fin : "SEARCH_TERM: [Nom générique]"
+        IMPORTANT :
+        Si ROUGE ou ORANGE, ajoute à la fin :
+        "SEARCH_TERM: [Nom générique]"
         SI VERT, N'AJOUTE RIEN.
         """
         try:
@@ -37,7 +39,11 @@ class GlutenAnalyzerLLM:
     def generate_recipe(self, mode, input_text):
         if not self.client:
             return "⚠️ Erreur clé API"
-        system_prompt = "Chef sans gluten." if mode == "creation" else "Expert substitution."
+        system_prompt = (
+            "Chef sans gluten."
+            if mode == "creation"
+            else "Expert substitution."
+        )
         user_prompt = (
             f"Recette sans gluten pour : {input_text}."
             if mode == "creation"
