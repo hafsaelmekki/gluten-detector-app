@@ -74,6 +74,18 @@ Key endpoints:
 - `POST /analysis` – send a product payload for LLM analysis.
 - `POST /recipes` – request a recipe (`mode`: `creation` or `adaptation`).
 
+## Docker
+1. Ensure `GROQ_API_KEY` is available in your shell (e.g., `export GROQ_API_KEY=...`).
+2. Build and start both services:
+```
+docker compose up --build
+```
+3. Access the apps:
+   - Streamlit frontend: http://localhost:8501
+   - FastAPI backend (docs at `/docs`): http://localhost:8000
+
+Stop the stack with `docker compose down`. The compose file builds a single image and runs two containers (frontend + backend) sharing the same code base.
+
 ## Development Notes
 - Core functionality lives in `core/` and is shared between Streamlit and FastAPI.
 - All modules follow PEP 8 formatting and include type hints.
