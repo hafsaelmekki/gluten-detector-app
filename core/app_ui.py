@@ -72,10 +72,15 @@ class AppUI:
                 st.warning("⚠️ Logo introuvable (images/logo/logo_titre.png)")
                 st.caption("Placez votre image dans le bon dossier.")
             st.write("")
+            scanner_color = (
+                "#2e7d32"
+                if st.session_state.active_section == "scanner"
+                else "#182032"
+            )
             st.markdown(
                 (
-                    "<div style='font-weight:bold;color:#182032;'>"
-                    "Scanner & Analyse</div>"
+                    "<div style='font-weight:bold;color:"
+                    f"{scanner_color};'>Scanner & Analyse</div>"
                 ),
                 unsafe_allow_html=True,
             )
@@ -98,10 +103,15 @@ class AppUI:
                 "<hr style='margin:10px 0;'>",
                 unsafe_allow_html=True,
             )
+            chef_color = (
+                "#2e7d32"
+                if st.session_state.active_section == "chef"
+                else "#182032"
+            )
             st.markdown(
                 (
-                    "<div style='font-weight:bold;color:#182032;'>"
-                    "Chef & Recettes</div>"
+                    "<div style='font-weight:bold;color:"
+                    f"{chef_color};'>Chef & Recettes</div>"
                 ),
                 unsafe_allow_html=True,
             )
@@ -485,7 +495,7 @@ class AppUI:
                 "--hover-color": "#e1e1e1",
             },
             "nav-link-selected": {
-                "background-color": "#5c7cfa",
+                "background-color": "#2e7d32",
                 "color": "white",
             },
         }
