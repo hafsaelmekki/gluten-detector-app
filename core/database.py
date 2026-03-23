@@ -78,3 +78,24 @@ def ensure_user_profile_schema() -> None:
         ddl = "ALTER TABLE user_profiles ADD COLUMN password TEXT DEFAULT ''"
     with engine.begin() as conn:
         conn.execute(text(ddl))
+
+
+def ensure_history_columns() -> None:
+    inspector = inspect(engine)
+    targets = [
+        "analysis_logs",
+        "recipe_logs",
+        "favorite_recipes",
+    ]
+    for table in targets:
+        try:
+            columns = [col["name"] for col in inspector.get_columns(table)]
+        except Exception:
+            continue
+        if "user_id" in columns:
+            continue
+        ddl = f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"
+        if engine.dialect.name == "sqlite":
+            ddl = f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"
+        with engine.begin() as conn:
+            conn.execute(text(ddl))
