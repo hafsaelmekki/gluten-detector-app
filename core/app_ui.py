@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 import requests
@@ -39,6 +40,8 @@ class AppUI:
             "analyse_actuelle": None,
             "alternatives_trouvees": None,
             "recette_generee": None,
+            "recettes_favorites": [],
+            "favorites_cache": None,
             "last_search": None,
             "resultats_recherche": None,
             "search_query": "",
@@ -57,9 +60,13 @@ class AppUI:
                 st.warning("⚠️ Logo introuvable (images/logo/logo_titre.png)")
                 st.caption("Placez votre image dans le bon dossier.")
             st.write("")
+            choices = [
+                "Scanner & Analyse",
+                "Chef & Recettes",
+            ]
             choix_section = option_menu(
                 menu_title=None,
-                options=["Scanner & Analyse", "Chef & Recettes"],
+                options=choices,
                 icons=["upc-scan", "egg-fried"],
                 default_index=0,
                 styles={
@@ -81,20 +88,55 @@ class AppUI:
                     },
                 },
             )
+            sous_section = None
+            if choix_section == "Chef & Recettes":
+                sous_section = option_menu(
+                    menu_title=None,
+                    options=["✨ Créer", "🔄 Adapter", "❤️ Favoris"],
+                    icons=["stars", "pencil-square", "heart"],
+                    default_index=0,
+                    styles={
+                        "container": {
+                            "padding": "0!important",
+                            "background-color": "transparent",
+                            "margin-top": "4px",
+                            "margin-left": "15px",
+                        },
+                        "icon": {"color": "#182032", "font-size": "16px"},
+                        "nav-link": {
+                            "font-size": "14px",
+                            "text-align": "left",
+                            "margin": "0px",
+                            "color": "#182032",
+                            "--hover-color": "#e1e1e1",
+                        },
+                        "nav-link-selected": {
+                            "background-color": "#5c7cfa",
+                            "color": "white",
+                        },
+                    },
+                    key="mode_recette",
+                )
             st.divider()
             if self.api_key_present:
                 st.success("✅ Clé API connectée")
             else:
                 st.error("❌ Clé API manquante")
-        return choix_section
+        return choix_section, sous_section
 
     def render(self) -> None:
         self.init_session()
-        choix_section = self.render_sidebar()
+        choix_section, sous_section = self.render_sidebar()
         if choix_section == "Scanner & Analyse":
             self.render_scanner_section()
-        else:
-            self.render_recipes_section()
+        elif choix_section == "Chef & Recettes":
+            if sous_section == "❤️ Favoris":
+                self.render_favorites_section()
+            else:
+                mode = (
+                    "creation" if sous_section == "✨ Créer" else "adaptation"
+                )
+                self.render_recipes_section(mode=mode)
 
     def render_scanner_section(self) -> None:
         st.title("🔎 Scanner de Produits")
@@ -265,36 +307,58 @@ class AppUI:
         if not history:
             st.info("Aucune analyse enregistrée pour le moment.")
             return
-        rows = []
+        rows_html = [
+            "<table style='width:100%; border-collapse:collapse;'>",
+            "<thead><tr><th style='text-align:left;'>Produit</th>"
+            "<th style='text-align:left;'>Date</th>"
+            "<th style='text-align:left;'>Résultat</th></tr></thead><tbody>",
+        ]
         for entry in history:
-            rows.append(
-                {
-                    "Produit": entry.get("product_name", "Produit"),
-                    "Date": self._format_timestamp(entry.get("created_at")),
-                    "Résultat": self._extract_status(entry.get("result")),
-                }
+            produit = entry.get("product_name", "Produit")
+            date = self._format_timestamp(entry.get("created_at"))
+            statut = self._extract_status(entry.get("result"))
+            image = entry.get("image_url")
+            color = "#e57373" if statut == "Contient du gluten" else "#aed581"
+            image_html = (
+                f"<img src='{image}' alt='{produit}' height='60'>"
+                if image
+                else ""
             )
-        st.table(rows)
+            rows_html.append(
+                "<tr>"
+                f"<td>{image_html}<div>{produit}</div></td>"
+                f"<td>{date}</td>"
+                f"<td style='background:{color};padding:6px;'>{statut}</td>"
+                "</tr>"
+            )
+        rows_html.append("</tbody></table>")
+        st.markdown("\n".join(rows_html), unsafe_allow_html=True)
 
-    def render_recipes_section(self) -> None:
+    def render_recipes_section(self, mode: str) -> None:
         st.title("👨‍🍳 Le Chef Sans Gluten")
-        mode_cuisine = st.radio(
-            "Option :",
-            ["✨ Créer une recette", "🔄 Adapter une recette"],
-            horizontal=True,
+        st.subheader(
+            "✨ Créer une recette"
+            if mode == "creation"
+            else "🔄 Adapter une recette"
         )
         st.divider()
-        if mode_cuisine == "✨ Créer une recette":
+        user_input = ""
+        if mode == "creation":
             col1, col2 = st.columns([2, 1])
-            plat = col1.text_input("Plat souhaité")
-            if col2.button("🍳 Générer") and plat:
+            plat = col1.text_input("Plat souhaité", key="create_input")
+            user_input = plat
+            if col2.button("🍳 Générer", key="create_button") and plat:
                 with st.spinner("Création..."):
                     recette = self._run_recipe("creation", plat)
                     if recette:
                         st.session_state.recette_generee = recette
         else:
-            texte = st.text_area("Collez votre recette ici :")
-            if st.button("✨ Transformer") and texte:
+            texte = st.text_area(
+                "Collez votre recette ici :",
+                key="adapt_input",
+            )
+            user_input = texte
+            if st.button("✨ Transformer", key="adapt_button") and texte:
                 with st.spinner("Adaptation..."):
                     recette = self._run_recipe("adaptation", texte)
                     if recette:
@@ -303,6 +367,40 @@ class AppUI:
             st.markdown("---")
             st.subheader("🍽️ Résultat")
             st.markdown(st.session_state.recette_generee)
+            if st.button(
+                "❤️ Ajouter aux favoris",
+                key=f"fav_{mode}",
+            ):
+                self._add_favorite(
+                    mode,
+                    user_input,
+                    st.session_state.recette_generee,
+                )
+
+    def render_favorites_section(self) -> None:
+        st.title("❤️ Recettes favorites")
+        favoris = self._get_favorites()
+        if not favoris:
+            st.info("Aucune recette enregistrée pour le moment.")
+            return
+        col_clear, _ = st.columns([1, 3])
+        if col_clear.button("🗑️ Vider les favoris"):
+            self._clear_favorites()
+            st.success("Favoris supprimés")
+            st.experimental_rerun()
+        for idx, fav in enumerate(favoris):
+            title = fav.get("input") or fav.get("input_text") or "Recette"
+            header = title if title.strip() else "Recette"
+            subtitle = (
+                f"{fav.get('mode', '')} · "
+                f"{self._format_timestamp(fav.get('created_at', ''))}"
+            )
+            with st.expander(header, expanded=False):
+                st.caption(subtitle)
+                st.markdown(fav.get("recipe", ""))
+                if st.button("Supprimer", key=f"fav_del_{idx}"):
+                    self._delete_favorite(idx, favoris)
+                    st.experimental_rerun()
 
     def _backend_request(
         self,
@@ -373,5 +471,88 @@ class AppUI:
     def _extract_status(value: Optional[str]) -> str:
         if not value:
             return ""
-        first_line = value.splitlines()[0]
-        return first_line.replace("###", "").strip()
+        first_line = value.splitlines()[0].replace("###", "").strip()
+        lowered = first_line.lower()
+        if "🔴" in first_line or "⚠️" in first_line:
+            return "Contient du gluten"
+        if "contient" in lowered or (
+            "gluten" in lowered and "sans" not in lowered
+        ):
+            return "Contient du gluten"
+        return "Sans gluten"
+
+    def _get_favorites(self) -> List[Dict[str, str]]:
+        if self.backend_url:
+            if st.session_state.favorites_cache is None:
+                data = self._backend_request(
+                    "get",
+                    "/favorites",
+                    on_error=lambda _: st.warning(
+                        "Impossible de charger les favoris depuis le backend."
+                    ),
+                )
+                st.session_state.favorites_cache = (
+                    data if isinstance(data, list) else []
+                )
+            return st.session_state.favorites_cache or []
+        return st.session_state.recettes_favorites or []
+
+    def _add_favorite(self, mode: str, user_input: str, recipe: str) -> None:
+        payload = {
+            "mode": mode,
+            "input_text": user_input or "",
+            "recipe": recipe,
+        }
+        if self.backend_url:
+            resp = self._backend_request(
+                "post",
+                "/favorites",
+                json=payload,
+                on_error=lambda _: st.error(
+                    "Impossible d'enregistrer la recette dans les favoris."
+                ),
+            )
+            if resp:
+                st.session_state.favorites_cache = None
+                st.toast("Ajouté aux favoris ✅")
+            return
+        entry = {
+            "mode": "Création" if mode == "creation" else "Adaptation",
+            "input": payload["input_text"],
+            "recipe": recipe,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        favs = st.session_state.get("recettes_favorites", [])
+        favs.insert(0, entry)
+        st.session_state.recettes_favorites = favs[:20]
+        st.toast("Ajouté aux favoris ✅")
+
+    def _delete_favorite(
+        self, index: int, favorites: List[Dict[str, str]]
+    ) -> None:
+        if self.backend_url and favorites:
+            fav_id = favorites[index].get("id")
+            if fav_id:
+                self._backend_request(
+                    "delete",
+                    f"/favorites/{fav_id}",
+                    on_error=lambda _: st.error(
+                        "Suppression impossible sur le backend."
+                    ),
+                )
+                st.session_state.favorites_cache = None
+                return
+        st.session_state.recettes_favorites.pop(index)
+
+    def _clear_favorites(self) -> None:
+        if self.backend_url:
+            self._backend_request(
+                "delete",
+                "/favorites",
+                on_error=lambda _: st.error(
+                    "Impossible de vider les favoris sur le backend."
+                ),
+            )
+            st.session_state.favorites_cache = None
+            return
+        st.session_state.recettes_favorites = []

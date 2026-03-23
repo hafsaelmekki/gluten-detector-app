@@ -11,10 +11,12 @@ Glutify combines a Streamlit front-end with a FastAPI backend to help people liv
 - **Chef & Recettes (Streamlit)**
   - Create new gluten-free recipes from a short prompt.
   - Adapt existing recipes into safe alternatives using the LLM.
+- **Recettes favorites persistantes**
+  - Sauvegarde via FastAPI/PostgreSQL, accessible depuis l’interface.
 - **FastAPI Backend**
   - `/products/search` and `/products/{code}` endpoints powered by OpenFoodFacts.
   - `/scan` endpoint to decode uploaded barcode images.
-  - `/analysis`, `/recipes`, and `/history/*` endpoints backed by the Groq LLM analyzer and SQL database logging.
+  - `/analysis`, `/recipes`, `/history/*` and `/favorites` endpoints backed by the Groq LLM analyzer and SQL database logging.
 
 ## Project Structure
 ```
@@ -82,6 +84,7 @@ Key endpoints:
 - `POST /scan` – upload an image to decode its barcode.
 - `POST /analysis` – send a product payload for LLM analysis.
 - `POST /recipes` – request a recipe (`mode`: `creation` or `adaptation`).
+- `GET/POST/DELETE /favorites` – gérer les recettes favorites persistantes.
 
 ## Docker
 1. Ensure `GROQ_API_KEY` and `DATABASE_URL` are available in your shell (e.g., `export GROQ_API_KEY=...` and `export DATABASE_URL=postgresql+psycopg2://...`).

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from core import FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
 from core.database import Base, engine, get_session
-from core.models import AnalysisLog, RecipeLog
+from core.models import AnalysisLog, FavoriteRecipe, RecipeLog
 
 API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -68,6 +68,22 @@ class RecipeLogSchema(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FavoriteRecipeSchema(BaseModel):
+    id: int
+    mode: str
+    input_text: str
+    recipe: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FavoriteRecipeRequest(BaseModel):
+    mode: Literal["creation", "adaptation"]
+    input_text: str
+    recipe: str
 
 
 @app.on_event("startup")
@@ -154,6 +170,52 @@ def list_recipe_history(
         .limit(limit)
         .all()
     )
+
+
+@app.get("/favorites", response_model=List[FavoriteRecipeSchema])
+def list_favorites(
+    limit: int = 20, db: Session = Depends(get_session)
+) -> List[FavoriteRecipeSchema]:
+    return (
+        db.query(FavoriteRecipe)
+        .order_by(FavoriteRecipe.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+@app.post("/favorites", response_model=FavoriteRecipeSchema)
+def add_favorite(
+    request: FavoriteRecipeRequest, db: Session = Depends(get_session)
+) -> FavoriteRecipeSchema:
+    fav = FavoriteRecipe(
+        mode=request.mode,
+        input_text=request.input_text,
+        recipe=request.recipe,
+    )
+    db.add(fav)
+    db.commit()
+    db.refresh(fav)
+    return fav
+
+
+@app.delete("/favorites/{favorite_id}")
+def delete_favorite(
+    favorite_id: int, db: Session = Depends(get_session)
+) -> Dict[str, str]:
+    fav = db.get(FavoriteRecipe, favorite_id)
+    if not fav:
+        raise HTTPException(status_code=404, detail="Favorite not found")
+    db.delete(fav)
+    db.commit()
+    return {"status": "deleted"}
+
+
+@app.delete("/favorites")
+def clear_favorites(db: Session = Depends(get_session)) -> Dict[str, str]:
+    db.query(FavoriteRecipe).delete()
+    db.commit()
+    return {"status": "cleared"}
 
 
 @app.post("/scan", response_model=ScanResponse)
