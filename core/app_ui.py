@@ -157,12 +157,12 @@ class AppUI:
             email = current.get("email")
             if email:
                 st.caption(f"Email : {email}")
-            col1, col2 = st.columns(2)
-            if col1.button("Se déconnecter"):
+            col1, col2 = st.columns([1, 1])
+            if col1.button("Déconnexion", key="logout_btn"):
                 st.session_state.profil_actif = None
                 st.session_state.active_section = "scanner"
                 st.rerun()
-            if col2.button("Supprimer ce profil"):
+            if col2.button("Supprimer", key="delete_btn"):
                 self._delete_profile(current.get("id"))
                 st.rerun()
             return True
