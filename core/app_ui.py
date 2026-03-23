@@ -1,8 +1,9 @@
 ﻿from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 
+import requests
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 from streamlit_option_menu import option_menu
@@ -22,11 +23,15 @@ class AppUI:
         scanner: FoodScanner,
         analyzer: GlutenAnalyzerLLM,
         api_key_present: bool,
+        backend_base_url: Optional[str] = None,
     ) -> None:
         self.api = api_client
         self.scanner = scanner
         self.analyzer = analyzer
         self.api_key_present = api_key_present
+        self.backend_url = (
+            backend_base_url.rstrip("/") if backend_base_url else None
+        )
 
     def init_session(self) -> None:
         defaults = {
@@ -37,6 +42,7 @@ class AppUI:
             "last_search": None,
             "resultats_recherche": None,
             "search_query": "",
+            "analysis_history": None,
         }
         for key, value in defaults.items():
             st.session_state.setdefault(key, value)
@@ -110,6 +116,8 @@ class AppUI:
         produit: Optional[Product] = st.session_state.produit_actuel
         if produit:
             self.render_product_details(produit)
+        st.divider()
+        self.render_history_section()
 
     def render_text_search_tab(self, container: DeltaGenerator) -> None:
         with container:
@@ -186,19 +194,20 @@ class AppUI:
             if not st.session_state.analyse_actuelle:
                 if st.button("🧠 Lancer l'analyse", type="primary"):
                     with st.spinner("Analyse..."):
-                        analyse = self.analyzer.analyze_product(product)
-                        st.session_state.analyse_actuelle = analyse
-                        match = re.search(
-                            r"SEARCH_TERM:\s*(.*)", analyse or ""
-                        )
-                        st.session_state.alternatives_trouvees = (
-                            self.api.find_gluten_free_alternatives(
-                                match.group(1).strip()
+                        analyse = self._run_analysis(product)
+                        if analyse:
+                            st.session_state.analyse_actuelle = analyse
+                            match = re.search(
+                                r"SEARCH_TERM:\s*(.*)", analyse or ""
                             )
-                            if match
-                            else None
-                        )
-                        st.rerun()
+                            st.session_state.alternatives_trouvees = (
+                                self.api.find_gluten_free_alternatives(
+                                    match.group(1).strip()
+                                )
+                                if match
+                                else None
+                            )
+                            st.rerun()
         with col_score:
             score = product.get("nutriscore_grade")
             if score:
@@ -232,6 +241,41 @@ class AppUI:
                         )
                     st.write(f"**{alt.get('product_name')}**")
 
+    def render_history_section(self) -> None:
+        st.markdown("### 📜 Historique des analyses")
+        if not self.backend_url:
+            st.info(
+                "Définissez BACKEND_URL pour activer la journalisation "
+                "et l'historique."
+            )
+            return
+        refresh = st.button("🔄 Rafraîchir l'historique", key="refresh_history")
+        if refresh or st.session_state.analysis_history is None:
+            data = self._backend_request(
+                "get",
+                "/history/analyses",
+                on_error=lambda _: st.warning(
+                    "Impossible de récupérer l'historique du backend."
+                ),
+            )
+            st.session_state.analysis_history = (
+                data if isinstance(data, list) else []
+            )
+        history = st.session_state.analysis_history or []
+        if not history:
+            st.info("Aucune analyse enregistrée pour le moment.")
+            return
+        rows = []
+        for entry in history:
+            rows.append(
+                {
+                    "Produit": entry.get("product_name", "Produit"),
+                    "Date": self._format_timestamp(entry.get("created_at")),
+                    "Résultat": self._extract_status(entry.get("result")),
+                }
+            )
+        st.table(rows)
+
     def render_recipes_section(self) -> None:
         st.title("👨‍🍳 Le Chef Sans Gluten")
         mode_cuisine = st.radio(
@@ -245,17 +289,89 @@ class AppUI:
             plat = col1.text_input("Plat souhaité")
             if col2.button("🍳 Générer") and plat:
                 with st.spinner("Création..."):
-                    st.session_state.recette_generee = (
-                        self.analyzer.generate_recipe("creation", plat)
-                    )
+                    recette = self._run_recipe("creation", plat)
+                    if recette:
+                        st.session_state.recette_generee = recette
         else:
             texte = st.text_area("Collez votre recette ici :")
             if st.button("✨ Transformer") and texte:
                 with st.spinner("Adaptation..."):
-                    st.session_state.recette_generee = (
-                        self.analyzer.generate_recipe("adaptation", texte)
-                    )
+                    recette = self._run_recipe("adaptation", texte)
+                    if recette:
+                        st.session_state.recette_generee = recette
         if st.session_state.recette_generee:
             st.markdown("---")
             st.subheader("🍽️ Résultat")
             st.markdown(st.session_state.recette_generee)
+
+    def _backend_request(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        on_error: Optional[Callable[[Exception], None]] = None,
+        **kwargs: Any,
+    ) -> Optional[Any]:
+        if not self.backend_url:
+            return None
+        url = f"{self.backend_url}{endpoint}"
+        try:
+            response = requests.request(
+                method,
+                url,
+                timeout=kwargs.pop("timeout", 15),
+                **kwargs,
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as exc:
+            if on_error:
+                on_error(exc)
+            return None
+
+    def _run_analysis(self, product: Product) -> Optional[str]:
+        if self.backend_url:
+            data = self._backend_request(
+                "post",
+                "/analysis",
+                json={"product": product},
+                on_error=lambda _: st.error(
+                    "Impossible de contacter le backend pour l'analyse."
+                ),
+            )
+            if isinstance(data, dict):
+                st.session_state.analysis_history = None
+                return data.get("result")
+        return self.analyzer.analyze_product(product)
+
+    def _run_recipe(self, mode: str, input_text: str) -> Optional[str]:
+        if self.backend_url:
+            data = self._backend_request(
+                "post",
+                "/recipes",
+                json={"mode": mode, "input_text": input_text},
+                on_error=lambda _: st.error(
+                    "Impossible de contacter le backend pour la recette."
+                ),
+            )
+            if isinstance(data, dict):
+                return data.get("recipe")
+        return self.analyzer.generate_recipe(mode, input_text)
+
+    @staticmethod
+    def _format_timestamp(value: Optional[str]) -> str:
+        if not value:
+            return ""
+        clean = value.replace("T", " ")
+        if "+" in clean:
+            clean = clean.split("+")[0]
+        if "Z" in clean:
+            clean = clean.replace("Z", "")
+        return clean.split(".")[0]
+
+    @staticmethod
+    def _extract_status(value: Optional[str]) -> str:
+        if not value:
+            return ""
+        first_line = value.splitlines()[0]
+        return first_line.replace("###", "").strip()
