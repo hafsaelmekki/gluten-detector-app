@@ -87,7 +87,7 @@ Key endpoints:
 - `POST /analysis` – send a product payload for LLM analysis.
 - `POST /recipes` – request a recipe (`mode`: `creation` or `adaptation`).
 - `GET/POST/DELETE /favorites` – gérer les recettes favorites persistantes.
-- `GET/POST/DELETE /users`, `POST /auth/login` – gestion des profils et connexion.
+- `GET/POST/DELETE /users`, `POST /auth/login` – gestion des profils et connexion (historiques/favoris filtrés par utilisateur).
 
 ## Docker
 1. Ensure `GROQ_API_KEY` and `DATABASE_URL` are available in your shell (e.g., `export GROQ_API_KEY=...` and `export DATABASE_URL=postgresql+psycopg2://...`).
