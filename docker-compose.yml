@@ -13,6 +13,8 @@ services:
       - "8501:8501"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - BACKEND_URL=http://backend:8000
     depends_on:
       - backend
     restart: unless-stopped
@@ -25,4 +27,5 @@ services:
       - "8000:8000"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped

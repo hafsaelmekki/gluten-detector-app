@@ -7,13 +7,14 @@ Glutify combines a Streamlit front-end with a FastAPI backend to help people liv
   - Text search through the OpenFoodFacts catalogue.
   - Barcode decoding through webcam or uploaded photos (via `pyzbar`).
   - Nutri-Score display plus automatic Groq LLM analysis that flags gluten risks and proposes safer alternatives.
+  - Historique des analyses synchronisé avec la base FastAPI/SQL.
 - **Chef & Recettes (Streamlit)**
   - Create new gluten-free recipes from a short prompt.
   - Adapt existing recipes into safe alternatives using the LLM.
 - **FastAPI Backend**
   - `/products/search` and `/products/{code}` endpoints powered by OpenFoodFacts.
   - `/scan` endpoint to decode uploaded barcode images.
-  - `/analysis` and `/recipes` endpoints backed by the Groq LLM analyzer.
+  - `/analysis`, `/recipes`, and `/history/*` endpoints backed by the Groq LLM analyzer and SQL database logging.
 
 ## Project Structure
 ```
@@ -23,8 +24,10 @@ Glutify combines a Streamlit front-end with a FastAPI backend to help people liv
 ├── core/
 │   ├── __init__.py         # Exports the reusable classes
 │   ├── app_ui.py           # Streamlit layout and callbacks
+│   ├── database.py         # SQLAlchemy engine/session helpers
 │   ├── food_scanner.py     # Image barcode decoding helpers
 │   ├── gluten_analyzer.py  # Groq LLM wrapper for analysis/recipes
+│   ├── models.py           # ORM models (analysis & recipe logs)
 │   └── openfoodfacts_api.py# Requests-based OpenFoodFacts client
 ├── images/                 # Branding assets (logo used in the sidebar/icon)
 └── README.md
@@ -50,7 +53,12 @@ pip install streamlit fastapi "uvicorn[standard]" pydantic requests groq Pillow 
      GROQ_API_KEY = "sk_your_key_here"
      ```
    - FastAPI: environment variable `GROQ_API_KEY` (e.g., `export GROQ_API_KEY=sk_your_key_here`).
-2. Ensure the branding asset `images/logo/logo_titre.png` exists; it is used both as sidebar logo and page icon.
+2. Configure the PostgreSQL connection string.
+   - FastAPI (`api.py`) reads `DATABASE_URL` (e.g., `postgresql+psycopg2://user:password@host/db`).
+   - Streamlit can also read it from `st.secrets` if you plan to expose DB-driven features.
+3. Ensure the branding asset `images/logo/logo_titre.png` exists; it is used both as sidebar logo and page icon.
+4. (Optionnel) Configure BACKEND_URL pour que Streamlit contacte l'API FastAPI (ex:
+   `http://localhost:8000` en local ou `http://backend:8000` dans Docker).
 
 ## Running Locally
 ### Streamlit Front-End
@@ -60,10 +68,11 @@ streamlit run app.py
 The sidebar exposes:
 - **Scanner & Analyse** – search/scan a product, run the LLM analysis, and view suggested gluten-free alternatives.
 - **Chef & Recettes** – generate or adapt recipes with the LLM assistant.
+- ℹ️ Configurez `BACKEND_URL` pour que les analyses passent par l'API et soient journalisées.
 
 ### FastAPI Backend
 ```
-# Make sure GROQ_API_KEY is exported
+# Ensure GROQ_API_KEY and DATABASE_URL are exported
 uvicorn api:app --reload --port 8000
 ```
 Key endpoints:
@@ -75,7 +84,7 @@ Key endpoints:
 - `POST /recipes` – request a recipe (`mode`: `creation` or `adaptation`).
 
 ## Docker
-1. Ensure `GROQ_API_KEY` is available in your shell (e.g., `export GROQ_API_KEY=...`).
+1. Ensure `GROQ_API_KEY` and `DATABASE_URL` are available in your shell (e.g., `export GROQ_API_KEY=...` and `export DATABASE_URL=postgresql+psycopg2://...`).
 2. Build and start both services:
 ```
 docker compose up --build
@@ -98,4 +107,4 @@ python -m py_compile app.py api.py core/*.py
 
 ## Deployment
 - **Streamlit**: Deploy on Streamlit Community Cloud or any container-friendly platform. Configure `GROQ_API_KEY` in secrets and ensure zbar is available.
-- **FastAPI**: Deploy with Uvicorn/Gunicorn or another ASGI server. Set `GROQ_API_KEY`, expose the desired port, and provide system packages required by `pyzbar`.
+- **FastAPI**: Deploy with Uvicorn/Gunicorn or another ASGI server. Set `GROQ_API_KEY`, `DATABASE_URL`, expose the desired port, and provide system packages required by `pyzbar`.

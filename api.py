@@ -1,17 +1,21 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
+from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy.orm import Session
 
 from core import FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
+from core.database import Base, engine, get_session
+from core.models import AnalysisLog, RecipeLog
 
 API_KEY = os.getenv("GROQ_API_KEY")
 
-app = FastAPI(title="Glutify API", version="1.0.0")
+app = FastAPI(title="Glutify API", version="1.1.0")
 
 food_api = OpenFoodFactsAPI()
 scanner = FoodScanner()
@@ -47,6 +51,30 @@ class ScanResponse(BaseModel):
     code: Optional[str]
 
 
+class AnalysisLogSchema(BaseModel):
+    id: int
+    product_name: str
+    result: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RecipeLogSchema(BaseModel):
+    id: int
+    mode: str
+    input_text: str
+    recipe: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+@app.on_event("startup")
+def startup() -> None:
+    Base.metadata.create_all(bind=engine)
+
+
 @app.get("/health")
 def health_check() -> Dict[str, str]:
     return {"status": "ok"}
@@ -71,19 +99,61 @@ def get_product(code: str) -> ProductResponse:
 
 
 @app.post("/analysis", response_model=AnalysisResponse)
-def analyze_product(payload: ProductPayload) -> AnalysisResponse:
+def analyze_product(
+    payload: ProductPayload, db: Session = Depends(get_session)
+) -> AnalysisResponse:
     if not analyzer.client:
         raise HTTPException(status_code=500, detail="LLM is not configured")
     result = analyzer.analyze_product(payload.product)
+    product_name = payload.product.get("product_name") or "Produit"
+    log = AnalysisLog(
+        product_name=str(product_name)[:255],
+        result=result,
+    )
+    db.add(log)
+    db.commit()
     return AnalysisResponse(result=result)
 
 
 @app.post("/recipes", response_model=RecipeResponse)
-def generate_recipe(request: RecipeRequest) -> RecipeResponse:
+def generate_recipe(
+    request: RecipeRequest, db: Session = Depends(get_session)
+) -> RecipeResponse:
     if not analyzer.client:
         raise HTTPException(status_code=500, detail="LLM is not configured")
     recipe = analyzer.generate_recipe(request.mode, request.input_text)
+    log = RecipeLog(
+        mode=request.mode,
+        input_text=request.input_text,
+        recipe=recipe,
+    )
+    db.add(log)
+    db.commit()
     return RecipeResponse(recipe=recipe)
+
+
+@app.get("/history/analyses", response_model=List[AnalysisLogSchema])
+def list_analysis_history(
+    limit: int = 20, db: Session = Depends(get_session)
+) -> List[AnalysisLogSchema]:
+    return (
+        db.query(AnalysisLog)
+        .order_by(AnalysisLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+@app.get("/history/recipes", response_model=List[RecipeLogSchema])
+def list_recipe_history(
+    limit: int = 20, db: Session = Depends(get_session)
+) -> List[RecipeLogSchema]:
+    return (
+        db.query(RecipeLog)
+        .order_by(RecipeLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 @app.post("/scan", response_model=ScanResponse)
