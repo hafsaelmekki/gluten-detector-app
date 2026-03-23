@@ -12,6 +12,7 @@ from typing import (
     Tuple,
     TYPE_CHECKING,
 )
+from uuid import uuid4
 
 import requests
 import streamlit as st
@@ -51,6 +52,9 @@ class AppUI:
             "recette_generee": None,
             "recettes_favorites": [],
             "favorites_cache": None,
+            "profils_locaux": [],
+            "profiles_cache": None,
+            "profil_actif": None,
             "scanner_choice": "🔎 Analyse",
             "chef_choice": "✨ Créer",
             "active_section": "scanner",
@@ -72,6 +76,9 @@ class AppUI:
                 st.warning("⚠️ Logo introuvable (images/logo/logo_titre.png)")
                 st.caption("Placez votre image dans le bon dossier.")
             st.write("")
+            if not self._render_profile_block():
+                return ("none", "", "")
+
             scanner_color = (
                 "#2e7d32"
                 if st.session_state.active_section == "scanner"
@@ -120,9 +127,7 @@ class AppUI:
                 menu_title=None,
                 options=chef_options,
                 icons=["stars", "pencil-square", "heart"],
-                default_index=chef_options.index(
-                    st.session_state.chef_choice
-                ),
+                default_index=chef_options.index(st.session_state.chef_choice),
                 styles=self._submenu_style(),
                 key="mode_recette",
             )
@@ -141,9 +146,63 @@ class AppUI:
             st.session_state.chef_choice,
         )
 
+    def _render_profile_block(self) -> bool:
+        st.markdown("## Compte")
+        profiles = self._get_profiles()
+        active_id = st.session_state.profil_actif
+        current = self._find_profile(profiles, active_id)
+        if current:
+            name = current.get("name", "Utilisateur")
+            st.success(f"Connecté en tant que {name}")
+            email = current.get("email")
+            if email:
+                st.caption(f"Email : {email}")
+            col1, col2 = st.columns(2)
+            if col1.button("Se déconnecter"):
+                st.session_state.profil_actif = None
+                st.session_state.active_section = "scanner"
+                st.rerun()
+            if col2.button("Supprimer ce profil"):
+                self._delete_profile(current.get("id"))
+                st.rerun()
+            return True
+
+        st.info("Connectez-vous ou inscrivez-vous pour continuer.")
+        st.markdown("#### Connexion")
+        with st.form("login_form", clear_on_submit=False):
+            identifier = st.text_input("Email ou nom", key="login_identifier")
+            password = st.text_input(
+                "Mot de passe", type="password", key="login_password"
+            )
+            login_submit = st.form_submit_button("Se connecter")
+        if login_submit:
+            if self._login_profile(identifier, password):
+                st.session_state.active_section = "scanner"
+                st.success("Connexion réussie")
+                st.rerun()
+            else:
+                st.error("Identifiants invalides")
+
+        st.markdown("#### Inscription")
+        with st.form("signup_form", clear_on_submit=True):
+            nom = st.text_input("Nom complet", key="profil_nom")
+            email = st.text_input("Email (optionnel)", key="profil_email")
+            password_new = st.text_input(
+                "Mot de passe", type="password", key="profil_password"
+            )
+            signup_submit = st.form_submit_button("Créer un compte")
+        if signup_submit:
+            if self._add_profile(nom, email, password_new):
+                st.session_state.active_section = "scanner"
+                st.rerun()
+        return False
+
     def render(self) -> None:
         self.init_session()
         active_section, sous_scanner, sous_chef = self.render_sidebar()
+        if active_section == "none":
+            st.info("Connectez-vous pour accéder à l'application.")
+            return
         if active_section == "scanner":
             if sous_scanner == "📜 Historique":
                 self.render_history_section()
@@ -153,9 +212,7 @@ class AppUI:
             if sous_chef == "❤️ Favoris":
                 self.render_favorites_section()
             else:
-                mode = (
-                    "creation" if sous_chef == "✨ Créer" else "adaptation"
-                )
+                mode = "creation" if sous_chef == "✨ Créer" else "adaptation"
                 self.render_recipes_section(mode=mode)
 
     def render_scanner_section(self, show_history: bool = True) -> None:
@@ -408,7 +465,7 @@ class AppUI:
         if col_clear.button("🗑️ Vider les favoris"):
             self._clear_favorites()
             st.success("Favoris supprimés")
-            st.experimental_rerun()
+            st.rerun()
         for idx, fav in enumerate(favoris):
             title = fav.get("input") or fav.get("input_text") or "Recette"
             header = title if title.strip() else "Recette"
@@ -421,7 +478,7 @@ class AppUI:
                 st.markdown(fav.get("recipe", ""))
                 if st.button("Supprimer", key=f"fav_del_{idx}"):
                     self._delete_favorite(idx, favoris)
-                    st.experimental_rerun()
+                    st.rerun()
 
     def _backend_request(
         self,
@@ -600,3 +657,126 @@ class AppUI:
             st.session_state.favorites_cache = None
             return
         st.session_state.recettes_favorites = []
+
+    def _get_profiles(self) -> List[Dict[str, Any]]:
+        if self.backend_url:
+            if st.session_state.profiles_cache is None:
+                data = self._backend_request(
+                    "get",
+                    "/users",
+                    on_error=lambda _: st.warning(
+                        "Impossible de charger les profils depuis le backend."
+                    ),
+                )
+                st.session_state.profiles_cache = (
+                    data if isinstance(data, list) else []
+                )
+            return st.session_state.profiles_cache or []
+        return st.session_state.profils_locaux or []
+
+    def _add_profile(self, name: str, email: str, password: str) -> bool:
+        clean_name = name.strip()
+        clean_password = password.strip()
+        if not clean_name or not clean_password:
+            st.warning("Nom et mot de passe requis.")
+            return False
+        payload = {
+            "name": clean_name,
+            "email": email.strip() or None,
+            "password": clean_password,
+        }
+        if self.backend_url:
+            resp = self._backend_request(
+                "post",
+                "/users",
+                json=payload,
+                on_error=lambda _: st.error(
+                    "Impossible de créer le profil sur le backend."
+                ),
+            )
+            if resp:
+                st.session_state.profiles_cache = None
+                st.session_state.profil_actif = resp.get("id")
+                st.toast("Profil ajouté ✅")
+                return True
+            return False
+        entry = {
+            "id": str(uuid4()),
+            "name": clean_name,
+            "email": payload["email"],
+            "password": clean_password,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        locaux = st.session_state.profils_locaux
+        locaux.insert(0, entry)
+        st.session_state.profils_locaux = locaux
+        st.session_state.profil_actif = entry["id"]
+        st.toast("Profil ajouté ✅")
+        return True
+
+    def _delete_profile(self, profile_id: Optional[Any]) -> None:
+        if not profile_id:
+            return
+        if self.backend_url:
+            self._backend_request(
+                "delete",
+                f"/users/{profile_id}",
+                on_error=lambda _: st.error(
+                    "Impossible de supprimer ce profil sur le backend."
+                ),
+            )
+            st.session_state.profiles_cache = None
+        else:
+            locaux = st.session_state.profils_locaux
+            st.session_state.profils_locaux = [
+                p for p in locaux if str(p.get("id")) != str(profile_id)
+            ]
+        if str(st.session_state.profil_actif) == str(profile_id):
+            st.session_state.profil_actif = None
+        if not self.backend_url and not st.session_state.profils_locaux:
+            st.session_state.profil_actif = None
+
+    def _login_profile(self, identifier: str, password: str) -> bool:
+        ident = identifier.strip()
+        pwd = password.strip()
+        if not ident or not pwd:
+            st.warning("Identifiants requis.")
+            return False
+        if self.backend_url:
+            resp = self._backend_request(
+                "post",
+                "/auth/login",
+                json={"identifier": ident, "password": pwd},
+                on_error=lambda _: st.error(
+                    "Connexion impossible via le backend."
+                ),
+            )
+            if resp:
+                st.session_state.profiles_cache = None
+                st.session_state.profil_actif = resp.get("id")
+                return True
+            return False
+        for profile in st.session_state.profils_locaux:
+            if (
+                profile.get("email") == ident or profile.get("name") == ident
+            ) and profile.get("password") == pwd:
+                st.session_state.profil_actif = profile.get("id")
+                return True
+        return False
+
+    @staticmethod
+    def _format_profile_label(profile: Dict[str, Any]) -> str:
+        email = profile.get("email")
+        name = profile.get("name", "Profil")
+        return f"{name} ({email})" if email else name
+
+    @staticmethod
+    def _find_profile(
+        profiles: List[Dict[str, Any]], profile_id: Optional[Any]
+    ) -> Optional[Dict[str, Any]]:
+        if not profile_id:
+            return None
+        for profile in profiles:
+            if str(profile.get("id")) == str(profile_id):
+                return profile
+        return None

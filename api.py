@@ -10,8 +10,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core import FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
-from core.database import Base, engine, get_session
-from core.models import AnalysisLog, FavoriteRecipe, RecipeLog
+from core.database import Base, engine, ensure_user_profile_schema, get_session
+from core.models import AnalysisLog, FavoriteRecipe, RecipeLog, UserProfile
 
 API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -86,9 +86,30 @@ class FavoriteRecipeRequest(BaseModel):
     recipe: str
 
 
+class UserProfileSchema(BaseModel):
+    id: int
+    name: str
+    email: Optional[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserProfileRequest(BaseModel):
+    name: str
+    email: Optional[str] = None
+    password: str
+
+
+class LoginRequest(BaseModel):
+    identifier: str
+    password: str
+
+
 @app.on_event("startup")
 def startup() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_user_profile_schema()
 
 
 @app.get("/health")
@@ -216,6 +237,61 @@ def clear_favorites(db: Session = Depends(get_session)) -> Dict[str, str]:
     db.query(FavoriteRecipe).delete()
     db.commit()
     return {"status": "cleared"}
+
+
+@app.get("/users", response_model=List[UserProfileSchema])
+def list_users(db: Session = Depends(get_session)) -> List[UserProfileSchema]:
+    return db.query(UserProfile).order_by(UserProfile.created_at.desc()).all()
+
+
+@app.post("/users", response_model=UserProfileSchema)
+def create_user(
+    request: UserProfileRequest, db: Session = Depends(get_session)
+) -> UserProfileSchema:
+    name = request.name.strip()
+    password = request.password.strip()
+    if not name or not password:
+        raise HTTPException(
+            status_code=400, detail="Nom et mot de passe requis"
+        )
+    user = UserProfile(
+        name=name,
+        email=(request.email or None),
+        password=password,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.delete("/users/{user_id}")
+def delete_user(
+    user_id: int, db: Session = Depends(get_session)
+) -> Dict[str, str]:
+    user = db.get(UserProfile, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Profil introuvable")
+    db.delete(user)
+    db.commit()
+    return {"status": "deleted"}
+
+
+@app.post("/auth/login", response_model=UserProfileSchema)
+def login_user(
+    request: LoginRequest, db: Session = Depends(get_session)
+) -> UserProfileSchema:
+    identifier = request.identifier.strip()
+    password = request.password.strip()
+    if not identifier or not password:
+        raise HTTPException(status_code=400, detail="Identifiants requis")
+    query = db.query(UserProfile)
+    user = query.filter(UserProfile.email == identifier).first()
+    if not user:
+        user = query.filter(UserProfile.name == identifier).first()
+    if not user or user.password != password:
+        raise HTTPException(status_code=401, detail="Connexion refusée")
+    return user
 
 
 @app.post("/scan", response_model=ScanResponse)

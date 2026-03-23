@@ -8,7 +8,7 @@ try:
 except ModuleNotFoundError:  # Backend (FastAPI) n'utilise pas Streamlit
     st = None  # type: ignore
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DEFAULT_SQLITE_URL = "sqlite:///./glutify.db"
@@ -59,3 +59,22 @@ def get_session() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def ensure_user_profile_schema() -> None:
+    inspector = inspect(engine)
+    try:
+        columns = [
+            col["name"] for col in inspector.get_columns("user_profiles")
+        ]
+    except Exception:
+        return
+    if "password" in columns:
+        return
+    ddl = (
+        "ALTER TABLE user_profiles ADD COLUMN password VARCHAR(255) DEFAULT ''"
+    )
+    if engine.dialect.name == "sqlite":
+        ddl = "ALTER TABLE user_profiles ADD COLUMN password TEXT DEFAULT ''"
+    with engine.begin() as conn:
+        conn.execute(text(ddl))
