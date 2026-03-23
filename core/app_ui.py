@@ -74,8 +74,8 @@ class AppUI:
             "profils_locaux": [],
             "profiles_cache": None,
             "profil_actif": None,
-            "scanner_choice": "?? Analyse",
-            "chef_choice": "? Créer",
+            "scanner_choice": "Analyse",
+            "chef_choice": "Créer",
             "active_section": "welcome",
             "last_search": None,
             "resultats_recherche": None,
@@ -99,7 +99,9 @@ class AppUI:
 
             except Exception:
 
-                st.warning("?? Logo introuvable (images/logo/logo_titre.png)")
+                st.warning(
+                    "Logo introuvable (images/logo/logo_titre.png)"
+                )
 
                 st.caption("Placez votre image dans le bon dossier.")
 
@@ -123,7 +125,7 @@ class AppUI:
                 unsafe_allow_html=True,
             )
 
-            scanner_options = ["?? Analyse", "?? Historique"]
+            scanner_options = ["Analyse", "Historique"]
 
             scanner_choice = option_menu(
                 menu_title=None,
@@ -161,7 +163,11 @@ class AppUI:
                 unsafe_allow_html=True,
             )
 
-            chef_options = ["? Créer", "?? Adapter", "?? Favoris"]
+            chef_options = [
+                "Créer",
+                "Adapter",
+                "Favoris",
+            ]
 
             chef_choice = option_menu(
                 menu_title=None,
@@ -182,11 +188,11 @@ class AppUI:
 
             if self.api_key_present:
 
-                st.success("? Clé API connectée")
+                st.success("Clé API connectée")
 
             else:
 
-                st.error("? Clé API manquante")
+                st.error("Clé API manquante")
 
         return (
             st.session_state.active_section,
@@ -302,7 +308,7 @@ class AppUI:
 
         if active_section == "scanner":
 
-            if sous_scanner == "?? Historique":
+            if sous_scanner == "Historique":
 
                 self.render_history_section()
 
@@ -312,19 +318,21 @@ class AppUI:
 
         else:
 
-            if sous_chef == "?? Favoris":
+            if sous_chef == "Favoris":
 
                 self.render_favorites_section()
 
             else:
 
-                mode = "creation" if sous_chef == "? Créer" else "adaptation"
+                mode = (
+                    "creation" if sous_chef == "Créer" else "adaptation"
+                )
 
                 self.render_recipes_section(mode=mode)
 
     def render_scanner_section(self, show_history: bool = True) -> None:
 
-        st.title("?? Scanner de Produits")
+        st.title("Scanner de produits")
 
         st.markdown(
             """
@@ -347,7 +355,9 @@ class AppUI:
             unsafe_allow_html=True,
         )
 
-        tab1, tab2 = st.tabs(["?? Recherche Texte", "?? Code-Barres"])
+        tab1, tab2 = st.tabs(
+            ["Recherche texte", "Code-barres"]
+        )
 
         self.render_text_search_tab(tab1)
 
@@ -400,7 +410,7 @@ class AppUI:
 
                 choix = st.selectbox("Sélectionnez :", list(options.keys()))
 
-                if st.button("? Valider"):
+                if st.button("Valider"):
 
                     st.session_state.produit_actuel = options[choix]
 
@@ -430,7 +440,7 @@ class AppUI:
 
                     st.success(f"Code : {code_barre}")
 
-                    if st.button("? Valider et Analyser"):
+                    if st.button("Valider et analyser"):
 
                         produit = self.api.search_product_by_code(code_barre)
 
@@ -462,15 +472,15 @@ class AppUI:
 
             titre = analyse.split("\n")[0].replace("###", "").strip()
 
-            if "??" in titre:
+            if "Favoris" in titre:
 
                 st.error(f"# {titre}")
 
-            elif "??" in titre:
+            elif "Favoris" in titre:
 
                 st.warning(f"# {titre}")
 
-            elif "??" in titre:
+            elif "Favoris" in titre:
 
                 st.success(f"# {titre}")
 
@@ -496,7 +506,7 @@ class AppUI:
 
             if not st.session_state.analyse_actuelle:
 
-                if st.button("?? Lancer l'analyse", type="primary"):
+                if st.button("Lancer l'analyse", type="primary"):
 
                     with st.spinner("Analyse..."):
 
@@ -550,7 +560,7 @@ class AppUI:
 
             st.divider()
 
-            st.markdown("### ? Meilleures alternatives Sans Gluten :")
+            st.markdown("### Meilleures alternatives sans gluten :")
 
             cols: Sequence[DeltaGenerator] = st.columns(3)
 
@@ -573,7 +583,7 @@ class AppUI:
 
     def render_history_section(self) -> None:
 
-        st.markdown("### ?? Historique des analyses")
+        st.markdown("### Historique des analyses")
 
         if not self.backend_url:
 
@@ -593,7 +603,7 @@ class AppUI:
             return
 
         refresh = st.button(
-            "?? Rafraîchir l'historique", key="refresh_history"
+            "Rafraîchir l'historique", key="refresh_history"
         )
 
         if refresh or st.session_state.analysis_history is None:
@@ -686,12 +696,12 @@ class AppUI:
 
     def render_recipes_section(self, mode: str) -> None:
 
-        st.title("????? Le Chef Sans Gluten")
+        st.title("Le Chef sans gluten")
 
         st.subheader(
-            "? Créer une recette"
+            "Créer une recette"
             if mode == "creation"
-            else "?? Adapter une recette"
+            else "Adapter une recette"
         )
 
         st.divider()
@@ -706,7 +716,7 @@ class AppUI:
 
             user_input = plat
 
-            if col2.button("?? Générer", key="create_button") and plat:
+            if col2.button("Générer", key="create_button") and plat:
 
                 with st.spinner("Création..."):
 
@@ -725,7 +735,7 @@ class AppUI:
 
             user_input = texte
 
-            if st.button("? Transformer", key="adapt_button") and texte:
+            if st.button("Transformer", key="adapt_button") and texte:
 
                 with st.spinner("Adaptation..."):
 
@@ -739,12 +749,12 @@ class AppUI:
 
             st.markdown("---")
 
-            st.subheader("??? Résultat")
+            st.subheader("Résultat")
 
             st.markdown(st.session_state.recette_generee)
 
             if st.button(
-                "?? Ajouter aux favoris",
+                "Ajouter aux favoris",
                 key=f"fav_{mode}",
             ):
 
@@ -758,7 +768,7 @@ class AppUI:
 
     def render_favorites_section(self) -> None:
 
-        st.title("?? Recettes favorites")
+        st.title("Recettes favorites")
 
         owner = self._current_profile_id()
 
@@ -778,7 +788,7 @@ class AppUI:
 
         col_clear, _ = st.columns([1, 3])
 
-        if col_clear.button("??? Vider les favoris"):
+        if col_clear.button("Vider les favoris"):
 
             self._clear_favorites()
 
@@ -946,7 +956,7 @@ class AppUI:
 
         lowered = first_line.lower()
 
-        if "??" in first_line or "??" in first_line:
+        if "Favoris" in first_line or "Favoris" in first_line:
 
             return "Contient du gluten"
 
@@ -1031,7 +1041,7 @@ class AppUI:
 
                 st.session_state.favorites_cache = None
 
-                st.toast("Ajouté aux favoris ?")
+                st.toast("Ajouté aux favoris")
 
                 return True
 
@@ -1051,7 +1061,7 @@ class AppUI:
 
         st.session_state.recettes_favorites = favs[:20]
 
-        st.toast("Ajouté aux favoris ?")
+        st.toast("Ajouté aux favoris")
 
         return True
 
@@ -1178,7 +1188,7 @@ class AppUI:
 
                 self._set_active_profile(resp.get("id"))
 
-                st.toast("Profil ajouté ?")
+                st.toast("Profil ajouté")
 
                 return True
 
@@ -1200,7 +1210,7 @@ class AppUI:
 
         self._set_active_profile(entry["id"])
 
-        st.toast("Profil ajouté ?")
+        st.toast("Profil ajouté")
 
         return True
 
@@ -1340,9 +1350,9 @@ class AppUI:
 
         st.session_state.active_section = "welcome"
 
-        st.session_state.scanner_choice = "?? Analyse"
+        st.session_state.scanner_choice = "Analyse"
 
-        st.session_state.chef_choice = "? Créer"
+        st.session_state.chef_choice = "Créer"
 
     @staticmethod
     def _current_profile_id() -> Optional[str]:
@@ -1376,3 +1386,4 @@ class AppUI:
             return None
 
         return {"user_id": uid}
+
