@@ -2,7 +2,16 @@
 
 import re
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 import requests
 import streamlit as st
@@ -42,6 +51,9 @@ class AppUI:
             "recette_generee": None,
             "recettes_favorites": [],
             "favorites_cache": None,
+            "scanner_choice": "🔎 Analyse",
+            "chef_choice": "✨ Créer",
+            "active_section": "scanner",
             "last_search": None,
             "resultats_recherche": None,
             "search_query": "",
@@ -50,7 +62,7 @@ class AppUI:
         for key, value in defaults.items():
             st.session_state.setdefault(key, value)
 
-    def render_sidebar(self) -> str:
+    def render_sidebar(self) -> Tuple[str, str, str]:
         with st.sidebar:
             try:
                 st.image(
@@ -60,85 +72,83 @@ class AppUI:
                 st.warning("⚠️ Logo introuvable (images/logo/logo_titre.png)")
                 st.caption("Placez votre image dans le bon dossier.")
             st.write("")
-            choices = [
-                "Scanner & Analyse",
-                "Chef & Recettes",
-            ]
-            choix_section = option_menu(
-                menu_title=None,
-                options=choices,
-                icons=["upc-scan", "egg-fried"],
-                default_index=0,
-                styles={
-                    "container": {
-                        "padding": "0!important",
-                        "background-color": "transparent",
-                    },
-                    "icon": {"color": "#182032", "font-size": "18px"},
-                    "nav-link": {
-                        "font-size": "16px",
-                        "text-align": "left",
-                        "margin": "5px",
-                        "color": "#182032",
-                        "--hover-color": "#e1e1e1",
-                    },
-                    "nav-link-selected": {
-                        "background-color": "#84bf78",
-                        "color": "white",
-                    },
-                },
+            st.markdown(
+                (
+                    "<div style='font-weight:bold;color:#182032;'>"
+                    "Scanner & Analyse</div>"
+                ),
+                unsafe_allow_html=True,
             )
-            sous_section = None
-            if choix_section == "Chef & Recettes":
-                sous_section = option_menu(
-                    menu_title=None,
-                    options=["✨ Créer", "🔄 Adapter", "❤️ Favoris"],
-                    icons=["stars", "pencil-square", "heart"],
-                    default_index=0,
-                    styles={
-                        "container": {
-                            "padding": "0!important",
-                            "background-color": "transparent",
-                            "margin-top": "4px",
-                            "margin-left": "15px",
-                        },
-                        "icon": {"color": "#182032", "font-size": "16px"},
-                        "nav-link": {
-                            "font-size": "14px",
-                            "text-align": "left",
-                            "margin": "0px",
-                            "color": "#182032",
-                            "--hover-color": "#e1e1e1",
-                        },
-                        "nav-link-selected": {
-                            "background-color": "#5c7cfa",
-                            "color": "white",
-                        },
-                    },
-                    key="mode_recette",
-                )
+            scanner_options = ["🔎 Analyse", "📜 Historique"]
+            scanner_choice = option_menu(
+                menu_title=None,
+                options=scanner_options,
+                icons=["search", "journal-text"],
+                default_index=scanner_options.index(
+                    st.session_state.scanner_choice
+                ),
+                styles=self._submenu_style(),
+                key="scanner_mode",
+            )
+            if scanner_choice != st.session_state.scanner_choice:
+                st.session_state.scanner_choice = scanner_choice
+                st.session_state.active_section = "scanner"
+
+            st.markdown(
+                "<hr style='margin:10px 0;'>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                (
+                    "<div style='font-weight:bold;color:#182032;'>"
+                    "Chef & Recettes</div>"
+                ),
+                unsafe_allow_html=True,
+            )
+            chef_options = ["✨ Créer", "🔄 Adapter", "❤️ Favoris"]
+            chef_choice = option_menu(
+                menu_title=None,
+                options=chef_options,
+                icons=["stars", "pencil-square", "heart"],
+                default_index=chef_options.index(
+                    st.session_state.chef_choice
+                ),
+                styles=self._submenu_style(),
+                key="mode_recette",
+            )
+            if chef_choice != st.session_state.chef_choice:
+                st.session_state.chef_choice = chef_choice
+                st.session_state.active_section = "chef"
+
             st.divider()
             if self.api_key_present:
                 st.success("✅ Clé API connectée")
             else:
                 st.error("❌ Clé API manquante")
-        return choix_section, sous_section
+        return (
+            st.session_state.active_section,
+            st.session_state.scanner_choice,
+            st.session_state.chef_choice,
+        )
 
     def render(self) -> None:
         self.init_session()
-        choix_section, sous_section = self.render_sidebar()
-        if choix_section == "Scanner & Analyse":
-            self.render_scanner_section()
-        elif choix_section == "Chef & Recettes":
-            if sous_section == "❤️ Favoris":
+        active_section, sous_scanner, sous_chef = self.render_sidebar()
+        if active_section == "scanner":
+            if sous_scanner == "📜 Historique":
+                self.render_history_section()
+            else:
+                self.render_scanner_section(show_history=False)
+        else:
+            if sous_chef == "❤️ Favoris":
                 self.render_favorites_section()
             else:
                 mode = (
-                    "creation" if sous_section == "✨ Créer" else "adaptation"
+                    "creation" if sous_chef == "✨ Créer" else "adaptation"
                 )
                 self.render_recipes_section(mode=mode)
 
-    def render_scanner_section(self) -> None:
+    def render_scanner_section(self, show_history: bool = True) -> None:
         st.title("🔎 Scanner de Produits")
         st.markdown(
             """
@@ -158,8 +168,9 @@ class AppUI:
         produit: Optional[Product] = st.session_state.produit_actuel
         if produit:
             self.render_product_details(produit)
-        st.divider()
-        self.render_history_section()
+        if show_history:
+            st.divider()
+            self.render_history_section()
 
     def render_text_search_tab(self, container: DeltaGenerator) -> None:
         with container:
@@ -455,6 +466,29 @@ class AppUI:
             if isinstance(data, dict):
                 return data.get("recipe")
         return self.analyzer.generate_recipe(mode, input_text)
+
+    @staticmethod
+    def _submenu_style() -> Dict[str, Dict[str, str]]:
+        return {
+            "container": {
+                "padding": "0!important",
+                "background-color": "transparent",
+                "margin-top": "4px",
+                "margin-left": "15px",
+            },
+            "icon": {"color": "#182032", "font-size": "16px"},
+            "nav-link": {
+                "font-size": "14px",
+                "text-align": "left",
+                "margin": "0px",
+                "color": "#182032",
+                "--hover-color": "#e1e1e1",
+            },
+            "nav-link-selected": {
+                "background-color": "#5c7cfa",
+                "color": "white",
+            },
+        }
 
     @staticmethod
     def _format_timestamp(value: Optional[str]) -> str:
