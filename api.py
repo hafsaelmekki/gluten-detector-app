@@ -10,7 +10,13 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core import FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
-from core.database import Base, engine, ensure_user_profile_schema, get_session
+from core.database import (
+    Base,
+    engine,
+    ensure_history_columns,
+    ensure_user_profile_schema,
+    get_session,
+)
 from core.models import AnalysisLog, FavoriteRecipe, RecipeLog, UserProfile
 
 API_KEY = os.getenv("GROQ_API_KEY")
@@ -24,11 +30,13 @@ analyzer = GlutenAnalyzerLLM(API_KEY)
 
 class ProductPayload(BaseModel):
     product: Dict[str, Any]
+    user_id: Optional[int] = None
 
 
 class RecipeRequest(BaseModel):
     mode: Literal["creation", "adaptation"]
     input_text: str
+    user_id: Optional[int] = None
 
 
 class RecipeResponse(BaseModel):
@@ -84,6 +92,7 @@ class FavoriteRecipeRequest(BaseModel):
     mode: Literal["creation", "adaptation"]
     input_text: str
     recipe: str
+    user_id: Optional[int] = None
 
 
 class UserProfileSchema(BaseModel):
@@ -110,6 +119,7 @@ class LoginRequest(BaseModel):
 def startup() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_user_profile_schema()
+    ensure_history_columns()
 
 
 @app.get("/health")
@@ -146,6 +156,7 @@ def analyze_product(
     log = AnalysisLog(
         product_name=str(product_name)[:255],
         result=result,
+        user_id=payload.user_id,
     )
     db.add(log)
     db.commit()
@@ -163,6 +174,7 @@ def generate_recipe(
         mode=request.mode,
         input_text=request.input_text,
         recipe=recipe,
+        user_id=request.user_id,
     )
     db.add(log)
     db.commit()
@@ -171,38 +183,38 @@ def generate_recipe(
 
 @app.get("/history/analyses", response_model=List[AnalysisLogSchema])
 def list_analysis_history(
-    limit: int = 20, db: Session = Depends(get_session)
+    limit: int = 20,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_session),
 ) -> List[AnalysisLogSchema]:
-    return (
-        db.query(AnalysisLog)
-        .order_by(AnalysisLog.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    query = db.query(AnalysisLog).order_by(AnalysisLog.created_at.desc())
+    if user_id is not None:
+        query = query.filter(AnalysisLog.user_id == user_id)
+    return query.limit(limit).all()
 
 
 @app.get("/history/recipes", response_model=List[RecipeLogSchema])
 def list_recipe_history(
-    limit: int = 20, db: Session = Depends(get_session)
+    limit: int = 20,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_session),
 ) -> List[RecipeLogSchema]:
-    return (
-        db.query(RecipeLog)
-        .order_by(RecipeLog.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    query = db.query(RecipeLog).order_by(RecipeLog.created_at.desc())
+    if user_id is not None:
+        query = query.filter(RecipeLog.user_id == user_id)
+    return query.limit(limit).all()
 
 
 @app.get("/favorites", response_model=List[FavoriteRecipeSchema])
 def list_favorites(
-    limit: int = 20, db: Session = Depends(get_session)
+    limit: int = 20,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_session),
 ) -> List[FavoriteRecipeSchema]:
-    return (
-        db.query(FavoriteRecipe)
-        .order_by(FavoriteRecipe.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    query = db.query(FavoriteRecipe).order_by(FavoriteRecipe.created_at.desc())
+    if user_id is not None:
+        query = query.filter(FavoriteRecipe.user_id == user_id)
+    return query.limit(limit).all()
 
 
 @app.post("/favorites", response_model=FavoriteRecipeSchema)
@@ -213,6 +225,7 @@ def add_favorite(
         mode=request.mode,
         input_text=request.input_text,
         recipe=request.recipe,
+        user_id=request.user_id,
     )
     db.add(fav)
     db.commit()
@@ -233,8 +246,13 @@ def delete_favorite(
 
 
 @app.delete("/favorites")
-def clear_favorites(db: Session = Depends(get_session)) -> Dict[str, str]:
-    db.query(FavoriteRecipe).delete()
+def clear_favorites(
+    user_id: Optional[int] = None, db: Session = Depends(get_session)
+) -> Dict[str, str]:
+    query = db.query(FavoriteRecipe)
+    if user_id is not None:
+        query = query.filter(FavoriteRecipe.user_id == user_id)
+    query.delete()
     db.commit()
     return {"status": "cleared"}
 
