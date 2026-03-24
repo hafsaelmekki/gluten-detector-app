@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 import streamlit as st
 
@@ -6,14 +6,18 @@ from core import AppUI, FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
 
 
 def _get_secret(name: str, default: str = "") -> str:
+    env_value = os.getenv(name)
+    if env_value not in (None, ""):
+        return env_value
     try:
         return st.secrets[name]
     except Exception:
-        return os.getenv(name, default)
+        return default
 
 
 API_KEY = _get_secret("GROQ_API_KEY", "")
 BACKEND_URL = _get_secret("BACKEND_URL", "").strip()
+
 
 st.set_page_config(
     page_title="GlutenFree App",
