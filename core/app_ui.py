@@ -296,9 +296,15 @@ class AppUI:
 
         if active_section == "none":
 
-            st.info("Connectez-vous pour accéder à l'application.")
+
+
+            self.render_welcome_section(show_login_hint=True)
+
+
 
             return
+
+
 
         if active_section == "welcome":
 
@@ -644,7 +650,7 @@ class AppUI:
 
         st.markdown("\n".join(rows_html), unsafe_allow_html=True)
 
-    def render_welcome_section(self) -> None:
+    def render_welcome_section(self, show_login_hint: bool = False) -> None:
 
         col_logo, col_text = st.columns([1, 2])
 
@@ -671,6 +677,14 @@ class AppUI:
                 "Vos historiques et favoris sont associés à votre profil, "
                 "pensez à vous connecter pour les retrouver."
             )
+
+            if show_login_hint:
+
+
+
+                st.info("Connectez-vous pour deverrouiller l'analyse, les recettes et vos favoris.")
+
+
 
     def render_recipes_section(self, mode: str) -> None:
 
