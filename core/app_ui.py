@@ -391,9 +391,9 @@ class AppUI:
 
             if should_search and query:
 
-                results = self.api.search_products(query)
+                results = self._search_products(query)
 
-                st.session_state.resultats_recherche = results
+                st.session_state.resultats_recherche = results or []
 
                 st.session_state.last_search = query
 
@@ -401,24 +401,26 @@ class AppUI:
                 "resultats_recherche"
             )
 
-            if results:
+            display_results = (results or [])[:10]
+
+            last_query = st.session_state.get("last_search")
+
+            if display_results:
 
                 options: Dict[str, Product] = {
                     f"{p['product_name']} ({p.get('brands', '')})": p
-                    for p in results
+                    for p in display_results
                 }
 
                 choix = st.selectbox("Sélectionnez :", list(options.keys()))
 
                 if st.button("Valider"):
 
-                    st.session_state.produit_actuel = options[choix]
+                    self._select_product(options[choix], auto_analyze=True)
 
-                    st.session_state.analyse_actuelle = None
+            elif last_query:
 
-                    st.session_state.alternatives_trouvees = None
-
-                    st.rerun()
+                st.info(f'Aucun produit trouvé pour "{last_query}".')
 
     def render_barcode_tab(self, container: DeltaGenerator) -> None:
 
@@ -446,13 +448,7 @@ class AppUI:
 
                         if produit:
 
-                            st.session_state.produit_actuel = produit
-
-                            st.session_state.analyse_actuelle = None
-
-                            st.session_state.alternatives_trouvees = None
-
-                            st.rerun()
+                            self._select_product(produit, auto_analyze=True)
 
                         else:
 
@@ -508,27 +504,9 @@ class AppUI:
 
                 if st.button("Lancer l'analyse", type="primary"):
 
-                    with st.spinner("Analyse..."):
+                    if self._run_and_store_analysis(product):
 
-                        analyse = self._run_analysis(product)
-
-                        if analyse:
-
-                            st.session_state.analyse_actuelle = analyse
-
-                            match = re.search(
-                                r"SEARCH_TERM:\s*(.*)", analyse or ""
-                            )
-
-                            st.session_state.alternatives_trouvees = (
-                                self.api.find_gluten_free_alternatives(
-                                    match.group(1).strip()
-                                )
-                                if match
-                                else None
-                            )
-
-                            st.rerun()
+                        st.rerun()
 
         with col_score:
 
@@ -818,6 +796,90 @@ class AppUI:
                     self._delete_favorite(idx, favoris)
 
                     st.rerun()
+
+    def _select_product(
+        self, product: Product, *, auto_analyze: bool = False
+    ) -> None:
+
+        st.session_state.produit_actuel = product
+
+        st.session_state.analyse_actuelle = None
+
+        st.session_state.alternatives_trouvees = None
+
+        if auto_analyze and self._run_and_store_analysis(product):
+
+            st.rerun()
+
+            return
+
+        st.rerun()
+
+    def _run_and_store_analysis(
+        self, product: Product, message: str = "Analyse..."
+    ) -> bool:
+
+        with st.spinner(message):
+
+            analyse = self._run_analysis(product)
+
+        if analyse:
+
+            self._store_analysis_result(analyse)
+
+            return True
+
+        return False
+
+    def _store_analysis_result(self, analyse: str) -> None:
+
+        st.session_state.analyse_actuelle = analyse
+
+        match = re.search(r"SEARCH_TERM:\s*(.*)", analyse or "")
+
+        if match:
+
+            term = match.group(1).strip()
+
+            st.session_state.alternatives_trouvees = (
+                self.api.find_gluten_free_alternatives(term)
+                if term
+                else None
+            )
+
+        else:
+
+            st.session_state.alternatives_trouvees = None
+
+    def _search_products(self, query: str) -> List[Product]:
+        if self.backend_url:
+            data = self._backend_request(
+                "get",
+                "/products/search",
+                params={"query": query},
+                on_error=lambda _: st.error(
+                    "Impossible de récupérer les produits depuis le backend."
+                ),
+            )
+
+            # On lit silencieusement la réponse du backend
+            if isinstance(data, dict):
+                products = data.get("products") or []
+                return [
+                    prod
+                    for prod in products
+                    if isinstance(prod, dict) and prod.get("product_name")
+                ]
+
+            elif isinstance(data, list):
+                return [
+                    prod for prod in data
+                    if isinstance(prod, dict) and prod.get("product_name")
+                ]
+
+            return []
+
+        return self.api.search_products(query)
 
     def _backend_request(
         self,
@@ -1386,4 +1448,3 @@ class AppUI:
             return None
 
         return {"user_id": uid}
-

@@ -81,7 +81,7 @@ uvicorn api:app --reload --port 8000
 ```
 Key endpoints:
 - `GET /health` – health check.
-- `GET /products/search?query=...` – search OpenFoodFacts.
+- `GET /products/searchCreerquery=...` – search OpenFoodFacts.
 - `GET /products/{code}` – fetch a product by barcode.
 - `POST /scan` – upload an image to decode its barcode.
 - `POST /analysis` – send a product payload for LLM analysis.
