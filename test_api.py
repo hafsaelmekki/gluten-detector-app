@@ -4,10 +4,10 @@ from api import app
 client = TestClient(app)
 
 
-def test_api_fonctionne():
-    """Test très simple pour vérifier que le backend est en vie"""
-    # On teste la route /docs car elle est auto-générée par FastAPI
+def test_api_is_alive():
+    """Basic smoke test that ensures the backend responds."""
+    # Use the auto-generated /docs route to avoid relying on custom logic
     response = client.get("/docs")
 
-    # On s'attend à ce que le code HTTP soit 200 (Succès)
+    # Expect a 200 HTTP status code indicating success
     assert response.status_code == 200

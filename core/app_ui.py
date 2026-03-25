@@ -876,7 +876,7 @@ class AppUI:
                 ),
             )
 
-            # On lit silencieusement la réponse du backend
+            # Read backend responses while suppressing user-facing noise
             if isinstance(data, dict):
                 products = data.get("products") or []
                 return [
