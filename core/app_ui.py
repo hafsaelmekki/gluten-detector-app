@@ -134,7 +134,11 @@ class AppUI:
                 default_index=scanner_options.index(
                     st.session_state.scanner_choice
                 ),
-                styles=self._submenu_style(),
+                styles=self._submenu_style(
+                    highlight_active=(
+                        st.session_state.active_section == "scanner"
+                    )
+                ),
                 key="scanner_mode",
             )
 
@@ -174,7 +178,11 @@ class AppUI:
                 options=chef_options,
                 icons=["stars", "pencil-square", "heart"],
                 default_index=chef_options.index(st.session_state.chef_choice),
-                styles=self._submenu_style(),
+                styles=self._submenu_style(
+                    highlight_active=(
+                        st.session_state.active_section == "chef"
+                    )
+                ),
                 key="mode_recette",
             )
 
@@ -979,9 +987,9 @@ class AppUI:
         return self.analyzer.generate_recipe(mode, input_text)
 
     @staticmethod
-    def _submenu_style() -> Dict[str, Dict[str, str]]:
+    def _submenu_style(highlight_active: bool = True) -> Dict[str, Dict[str, str]]:
 
-        return {
+        styles = {
             "container": {
                 "padding": "0!important",
                 "background-color": "transparent",
@@ -996,11 +1004,23 @@ class AppUI:
                 "color": "#182032",
                 "--hover-color": "#e1e1e1",
             },
-            "nav-link-selected": {
+        }
+
+        if highlight_active:
+
+            styles["nav-link-selected"] = {
                 "background-color": "#2e7d32",
                 "color": "white",
-            },
-        }
+            }
+
+        else:
+
+            styles["nav-link-selected"] = {
+                "background-color": "transparent",
+                "color": "#182032",
+            }
+
+        return styles
 
     @staticmethod
     def _format_timestamp(value: Optional[str]) -> str:
