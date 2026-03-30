@@ -658,7 +658,7 @@ class AppUI:
 
         rows_html = [
             "<table style='width:100%; border-collapse:collapse;'>",
-            "<thead><tr><th style='text-align:left;'>Produit</th>"
+            "<thead><tr><th style='text-align:left;'>Image</th><th style='text-align:left;'>Produit</th>"
             "<th style='text-align:left;'>Date</th>"
             "<th style='text-align:left;'>Résultat</th></tr></thead><tbody>",
         ]
@@ -689,9 +689,12 @@ class AppUI:
                 else ""
             )
 
+            image_cell = image_html or "&nbsp;"
+
             rows_html.append(
                 "<tr>"
-                f"<td>{image_html}<div>{produit}</div></td>"
+                f"<td style='width:80px;text-align:center;vertical-align:middle;'>{image_cell}</td>"
+                f"<td><div>{produit}</div></td>"
                 f"<td>{date}</td>"
                 f"<td style='background:{color};padding:6px;'>{display_status}</td>"
                 "</tr>"
