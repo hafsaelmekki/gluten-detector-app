@@ -15,7 +15,7 @@ class OpenFoodFactsAPIError(RuntimeError):
 
 
 class OpenFoodFactsAPI:
-    BASE_URL = "https://world.openfoodfacts.org"
+    BASE_URL = "https://world.openfoodfacts.net"
     MAX_RETRIES = 3
     BACKOFF_SECONDS = 1.5
     NAME_FIELDS = (
@@ -43,7 +43,8 @@ class OpenFoodFactsAPI:
                 if len(self._recent_requests) < self.RATE_LIMIT_REQUESTS:
                     self._recent_requests.append(now)
                     return
-                wait_for = self._recent_requests[0] + self.RATE_LIMIT_WINDOW - now
+                wait_for = self._recent_requests[0] + \
+                    self.RATE_LIMIT_WINDOW - now
             if wait_for > 0:
                 print(
                     f"[INFO] Rate limit OpenFoodFacts atteint, pause {wait_for:.1f}s"
@@ -58,10 +59,12 @@ class OpenFoodFactsAPI:
             window_start = now - self.RATE_LIMIT_WINDOW
             while self._recent_requests and self._recent_requests[0] < window_start:
                 self._recent_requests.popleft()
-            remaining = max(0, self.RATE_LIMIT_REQUESTS - len(self._recent_requests))
+            remaining = max(0, self.RATE_LIMIT_REQUESTS -
+                            len(self._recent_requests))
             reset_in = 0.0
             if self._recent_requests:
-                reset_in = self._recent_requests[0] + self.RATE_LIMIT_WINDOW - now
+                reset_in = self._recent_requests[0] + \
+                    self.RATE_LIMIT_WINDOW - now
         return {
             "limit": float(self.RATE_LIMIT_REQUESTS),
             "remaining": float(remaining),
@@ -122,12 +125,14 @@ class OpenFoodFactsAPI:
         }
         headers = {"User-Agent": "GlutifyApp - Windows - Version 1.0"}
 
-        response = self._request_with_retry(url=url, params=params, headers=headers)
+        response = self._request_with_retry(
+            url=url, params=params, headers=headers)
 
         try:
             data = response.json()
         except ValueError as exc:
-            raise OpenFoodFactsAPIError("Reponse OpenFoodFacts invalide") from exc
+            raise OpenFoodFactsAPIError(
+                "Reponse OpenFoodFacts invalide") from exc
 
         products: List[Product] = []
         for prod in data.get("products", []):
@@ -136,18 +141,17 @@ class OpenFoodFactsAPI:
                 products.append(normalized)
         return products
 
-
     def search_product_by_code(self, code: str) -> Optional[Product]:
         url = f"{self.BASE_URL}/api/v0/product/{code}.json"
         response = self._request_with_retry(url=url)
         try:
             data = response.json()
         except ValueError as exc:
-            raise OpenFoodFactsAPIError("Reponse OpenFoodFacts invalide") from exc
+            raise OpenFoodFactsAPIError(
+                "Reponse OpenFoodFacts invalide") from exc
         if data.get("status") != 1:
             return None
         return self._normalize_product(data.get("product", {}))
-
 
     def find_gluten_free_alternatives(self, category: str) -> List[Product]:
         url = f"{self.BASE_URL}/cgi/search.pl"
@@ -164,7 +168,8 @@ class OpenFoodFactsAPI:
         try:
             data = response.json()
         except ValueError as exc:
-            raise OpenFoodFactsAPIError("Reponse OpenFoodFacts invalide") from exc
+            raise OpenFoodFactsAPIError(
+                "Reponse OpenFoodFacts invalide") from exc
 
         products: List[Product] = []
         for prod in data.get("products", []):

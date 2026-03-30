@@ -898,13 +898,15 @@ class AppUI:
 
         if analyse:
 
-            self._store_analysis_result(analyse)
+            self._store_analysis_result(analyse, product)
 
             return True
 
         return False
 
-    def _store_analysis_result(self, analyse: str) -> None:
+    def _store_analysis_result(
+        self, analyse: str, product: Optional[Product] = None
+    ) -> None:
 
         st.session_state.analyse_actuelle = analyse
 
@@ -916,25 +918,35 @@ class AppUI:
 
             return
 
-        match = re.search(r"SEARCH_TERM\s*:\s*(.*)", analyse or "")
+        if statut.lower().startswith("sans"):
 
-        if match:
+            st.session_state.alternatives_trouvees = None
 
-            term = match.group(1).strip()
+            return
 
-            if term:
-                try:
-                    st.session_state.alternatives_trouvees = (
-                        self.api.find_gluten_free_alternatives(term)
-                    )
-                except OpenFoodFactsAPIError as exc:
-                    st.warning("Alternatives indisponibles (OpenFoodFacts).")
-                    print(f"[WARN] alternatives indisponibles: {exc}")
-                    st.session_state.alternatives_trouvees = None
-            else:
-                st.session_state.alternatives_trouvees = None
+        term = self._extract_search_term(analyse)
 
-        else:
+        if not term and product:
+
+            term = self._guess_generic_term(product)
+
+        if not term:
+
+            st.session_state.alternatives_trouvees = None
+
+            return
+
+        try:
+
+            st.session_state.alternatives_trouvees = (
+                self.api.find_gluten_free_alternatives(term)
+            )
+
+        except OpenFoodFactsAPIError as exc:
+
+            st.warning("Alternatives indisponibles (OpenFoodFacts).")
+
+            print(f"[WARN] alternatives indisponibles: {exc}")
 
             st.session_state.alternatives_trouvees = None
 
@@ -1134,6 +1146,77 @@ class AppUI:
             return "Sans gluten"
 
         return ""
+
+    @staticmethod
+    def _extract_search_term(value: Optional[str]) -> Optional[str]:
+
+        if not value:
+
+            return None
+
+        match = re.search(
+            r"search[\s_-]*term\s*[:=]\s*(.+)",
+            value,
+            flags=re.IGNORECASE,
+        )
+
+        if not match:
+
+            return None
+
+        raw = match.group(1).strip().strip('"').strip("'")
+
+        clean = raw.splitlines()[0].strip()
+
+        return clean or None
+
+    @staticmethod
+    def _guess_generic_term(product: Optional[Product]) -> Optional[str]:
+
+        if not product:
+
+            return None
+
+        candidates: List[str] = []
+
+        for key in (
+            "generic_name_fr",
+            "generic_name",
+            "categories",
+            "product_name",
+        ):
+
+            value = product.get(key)
+
+            if isinstance(value, str) and value.strip():
+
+                candidates.append(value.split(",")[0].strip())
+
+        tags = product.get("categories_tags")
+
+        if isinstance(tags, list):
+
+            for tag in tags:
+
+                if not isinstance(tag, str):
+                    continue
+
+                if ":" in tag:
+
+                    tag = tag.split(":", 1)[1]
+
+                tag_clean = tag.replace("-", " ").strip()
+
+                if tag_clean:
+                    candidates.append(tag_clean)
+
+        for candidate in candidates:
+
+            if candidate:
+
+                return candidate
+
+        return None
 
     def _get_favorites(self) -> List[Dict[str, str]]:
 
