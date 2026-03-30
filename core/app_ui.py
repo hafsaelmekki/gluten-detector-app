@@ -460,7 +460,12 @@ class AppUI:
 
                     if st.button("Valider et analyser"):
 
-                        produit = self.api.search_product_by_code(code_barre)
+                        try:
+                            produit = self.api.search_product_by_code(code_barre)
+                        except OpenFoodFactsAPIError as exc:
+                            st.error("Impossible de contacter OpenFoodFacts pour ce code-barres. R?essayez plus tard.")
+                            print(f"[WARN] scan code indisponible: {exc}")
+                            produit = None
 
                         if produit:
 
