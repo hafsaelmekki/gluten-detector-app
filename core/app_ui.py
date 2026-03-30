@@ -27,6 +27,8 @@ from streamlit.delta_generator import DeltaGenerator
 
 from streamlit_option_menu import option_menu
 
+from .openfoodfacts_api import OpenFoodFactsAPIError
+
 
 if TYPE_CHECKING:
 
@@ -477,22 +479,7 @@ class AppUI:
         st.divider()
 
         analyse: Optional[str] = st.session_state.analyse_actuelle
-
-        if analyse:
-
-            titre = analyse.split("\n")[0].replace("###", "").strip()
-
-            if "Favoris" in titre:
-
-                st.error(f"# {titre}")
-
-            elif "Favoris" in titre:
-
-                st.warning(f"# {titre}")
-
-            elif "Favoris" in titre:
-
-                st.success(f"# {titre}")
+        analyse_lines = analyse.splitlines() if analyse else []
 
         col_img, col_infos, col_score = st.columns([1, 2, 1])
 
@@ -512,7 +499,7 @@ class AppUI:
 
             if ingredients:
 
-                st.write(f"**Ingrédients:** {ingredients[:200]}...")
+                st.write(f"**Ingredients:** {ingredients[:200]}...")
 
             if not st.session_state.analyse_actuelle:
 
@@ -538,15 +525,63 @@ class AppUI:
                     width=100,
                 )
 
-        if st.session_state.analyse_actuelle:
+        if analyse_lines:
+
+            titre = analyse_lines[0].replace("###", "").strip()
+
+            titre_lower = titre.lower()
+
+            verdict_renderer = st.info
+
+            if "interdit" in titre_lower or ("contient" in titre_lower and "sans" not in titre_lower):
+
+                verdict_renderer = st.error
+
+            elif "risque" in titre_lower:
+
+                verdict_renderer = st.warning
+
+            elif "sans" in titre_lower:
+
+                verdict_renderer = st.success
+
+            verdict_renderer(f"# {titre}")
+
+            detail_lines: List[str] = []
+
+            for detail_line in analyse_lines[1:]:
+
+                stripped = detail_line.strip()
+
+                if not stripped:
+
+                    continue
+
+                if stripped.upper().startswith("IMPORTANT"):
+
+                    continue
+
+                if stripped.startswith('"SEARCH_TERM') or stripped.startswith("'SEARCH_TERM"):
+
+                    continue
+
+                if stripped.upper().startswith("SI ROUGE") or stripped.upper().startswith("SI VERT"):
+
+                    continue
+
+                detail_lines.append(detail_line)
 
             clean_text = re.sub(
                 r"SEARCH_TERM:.*",
                 "",
-                "\n".join(st.session_state.analyse_actuelle.split("\n")[1:]),
-            )
+                "\n".join(detail_lines),
+            ).strip()
 
-            st.markdown(clean_text)
+            if clean_text:
+
+                st.markdown("### Justification")
+
+                st.markdown(clean_text)
 
         if st.session_state.alternatives_trouvees:
 
@@ -857,7 +892,7 @@ class AppUI:
 
         st.session_state.analyse_actuelle = analyse
 
-        match = re.search(r"SEARCH_TERM:\s*(.*)", analyse or "")
+        match = re.search(r"SEARCH_TERM\s*:\s*(.*)", analyse or "")
 
         if match:
 
@@ -901,7 +936,12 @@ class AppUI:
 
             return []
 
-        return self.api.search_products(query)
+        try:
+            return self.api.search_products(query)
+        except OpenFoodFactsAPIError as exc:
+            st.error("OpenFoodFacts est temporairement indisponible. Merci de reessayer.")
+            print(f"[WARN] search_products indisponible: {exc}")
+            return []
 
     def _backend_request(
         self,
