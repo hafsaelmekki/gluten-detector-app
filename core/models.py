@@ -21,6 +21,7 @@ class AnalysisLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    image_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
 
 class RecipeLog(Base):

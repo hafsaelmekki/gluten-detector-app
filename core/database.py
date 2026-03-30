@@ -92,10 +92,15 @@ def ensure_history_columns() -> None:
             columns = [col["name"] for col in inspector.get_columns(table)]
         except Exception:
             continue
-        if "user_id" in columns:
-            continue
-        ddl = f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"
-        if engine.dialect.name == "sqlite":
+        if "user_id" not in columns:
             ddl = f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"
-        with engine.begin() as conn:
-            conn.execute(text(ddl))
+            if engine.dialect.name == "sqlite":
+                ddl = f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"
+            with engine.begin() as conn:
+                conn.execute(text(ddl))
+        if table == "analysis_logs" and "image_url" not in columns:
+            ddl_img = "ALTER TABLE analysis_logs ADD COLUMN image_url VARCHAR(512)"
+            if engine.dialect.name == "sqlite":
+                ddl_img = "ALTER TABLE analysis_logs ADD COLUMN image_url TEXT"
+            with engine.begin() as conn:
+                conn.execute(text(ddl_img))

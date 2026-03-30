@@ -72,6 +72,7 @@ class AnalysisLogSchema(BaseModel):
     id: int
     product_name: str
     result: str
+    image_url: Optional[str]
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -167,9 +168,11 @@ def analyze_product(
     if not _analysis_has_verdict(result):
         return AnalysisResponse(result=result)
     product_name = payload.product.get("product_name") or "Produit"
+    image_url = payload.product.get("image_front_small_url") or payload.product.get("image_url")
     log = AnalysisLog(
         product_name=str(product_name)[:255],
         result=result,
+        image_url=image_url,
         user_id=payload.user_id,
     )
     db.add(log)
