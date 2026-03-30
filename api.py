@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core import FoodScanner, GlutenAnalyzerLLM, OpenFoodFactsAPI
+from core.openfoodfacts_api import OpenFoodFactsAPIError
 from core.database import (
     Base,
     engine,
@@ -133,7 +134,10 @@ def search_products(query: str) -> ProductsResponse:
         raise HTTPException(
             status_code=400, detail="Query parameter is required"
         )
-    products = food_api.search_products(query)
+    try:
+        products = food_api.search_products(query)
+    except OpenFoodFactsAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return ProductsResponse(products=products)
 
 
