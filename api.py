@@ -29,6 +29,14 @@ scanner = FoodScanner()
 analyzer = GlutenAnalyzerLLM(API_KEY)
 
 
+def _analysis_has_verdict(result: str) -> bool:
+    if not result:
+        return False
+    first_line = result.splitlines()[0].strip().lower()
+    keywords = ("sans", "risque", "interdit")
+    return any(word in first_line for word in keywords)
+
+
 class ProductPayload(BaseModel):
     product: Dict[str, Any]
     user_id: Optional[int] = None
@@ -156,6 +164,8 @@ def analyze_product(
     if not analyzer.client:
         raise HTTPException(status_code=500, detail="LLM is not configured")
     result = analyzer.analyze_product(payload.product)
+    if not _analysis_has_verdict(result):
+        return AnalysisResponse(result=result)
     product_name = payload.product.get("product_name") or "Produit"
     log = AnalysisLog(
         product_name=str(product_name)[:255],

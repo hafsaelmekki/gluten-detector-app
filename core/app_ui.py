@@ -671,9 +671,17 @@ class AppUI:
 
             statut = self._extract_status(entry.get("result"))
 
+            color_map = {
+                "Interdit": "#e57373",
+                "Risque": "#ffb74d",
+                "Sans gluten": "#aed581",
+            }
+
+            display_status = statut or "Indisponible"
+
             image = entry.get("image_url")
 
-            color = "#e57373" if statut == "Contient du gluten" else "#aed581"
+            color = color_map.get(statut, "#cfd8dc")
 
             image_html = (
                 f"<img src='{image}' alt='{produit}' height='60'>"
@@ -685,7 +693,7 @@ class AppUI:
                 "<tr>"
                 f"<td>{image_html}<div>{produit}</div></td>"
                 f"<td>{date}</td>"
-                f"<td style='background:{color};padding:6px;'>{statut}</td>"
+                f"<td style='background:{color};padding:6px;'>{display_status}</td>"
                 "</tr>"
             )
 
@@ -892,6 +900,14 @@ class AppUI:
 
         st.session_state.analyse_actuelle = analyse
 
+        statut = self._extract_status(analyse)
+
+        if not statut:
+
+            st.session_state.alternatives_trouvees = None
+
+            return
+
         match = re.search(r"SEARCH_TERM\s*:\s*(.*)", analyse or "")
 
         if match:
@@ -1089,20 +1105,21 @@ class AppUI:
             return ""
 
         first_line = value.splitlines()[0].replace("###", "").strip()
-
         lowered = first_line.lower()
 
-        if "Favoris" in first_line or "Favoris" in first_line:
+        if "erreur" in lowered:
+            return ""
 
-            return "Contient du gluten"
+        if "interdit" in lowered or ("contient" in lowered and "sans" not in lowered):
+            return "Interdit"
 
-        if "contient" in lowered or (
-            "gluten" in lowered and "sans" not in lowered
-        ):
+        if "risque" in lowered:
+            return "Risque"
 
-            return "Contient du gluten"
+        if "sans" in lowered:
+            return "Sans gluten"
 
-        return "Sans gluten"
+        return ""
 
     def _get_favorites(self) -> List[Dict[str, str]]:
 
