@@ -914,11 +914,17 @@ class AppUI:
 
             term = match.group(1).strip()
 
-            st.session_state.alternatives_trouvees = (
-                self.api.find_gluten_free_alternatives(term)
-                if term
-                else None
-            )
+            if term:
+                try:
+                    st.session_state.alternatives_trouvees = (
+                        self.api.find_gluten_free_alternatives(term)
+                    )
+                except OpenFoodFactsAPIError as exc:
+                    st.warning("Alternatives indisponibles (OpenFoodFacts).")
+                    print(f"[WARN] alternatives indisponibles: {exc}")
+                    st.session_state.alternatives_trouvees = None
+            else:
+                st.session_state.alternatives_trouvees = None
 
         else:
 
