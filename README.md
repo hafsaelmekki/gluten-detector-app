@@ -33,7 +33,9 @@ Glutify couples a Streamlit front-end with a FastAPI backend so people living wi
 |-- images/                 # Branding assets (logo used in UI)
 |-- regles_gluten.txt       # Medical guidance indexed by the RAG
 |-- requirements.txt
-|-- docker-compose.yml / Dockerfile
+|-- docker/
+|   |-- Dockerfile
+|   |-- docker-compose.yml
 |-- test_api.py
 |-- .streamlit/
     |-- config.toml
@@ -102,12 +104,13 @@ Glutify couples a Streamlit front-end with a FastAPI backend so people living wi
 
 ## Docker
 1. Export `GROQ_API_KEY`, `DATABASE_URL`, and optionally `HF_TOKEN`/`BACKEND_URL` in your shell.
-2. Build and start both services:
+2. Build and start both services (run commands from the `docker/` directory so the compose file is discovered):
    ```
+   cd docker
    docker compose up --build
    ```
 3. Streamlit lives at `http://localhost:8501`, FastAPI (and `/docs`) at `http://localhost:8000`.  
-   Stop everything with `docker compose down`.
+   Stop everything with `docker compose down` from the same `docker/` folder.
 
 ## Troubleshooting
 - **OpenFoodFacts returns 503 / stays offline**  
