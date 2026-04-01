@@ -711,37 +711,63 @@ class AppUI:
 
     def render_welcome_section(self, show_login_hint: bool = False) -> None:
 
-        col_logo, col_text = st.columns([1, 2])
+        active_id = st.session_state.get("profil_actif")
 
-        with col_logo:
+        profile_name: Optional[str] = None
 
-            try:
+        if active_id is not None:
 
-                st.image("images/logo/logo_titre.png", width=180)
+            profile = self._find_profile(self._get_profiles(), active_id)
 
-            except Exception:
+            if profile:
 
-                st.empty()
+                profile_name = (
+                    profile.get("name")
+                    or profile.get("email")
+                    or str(profile.get("id"))
+                )
 
-        with col_text:
+        subtitle = (
+            f"Votre espace personnalisé est prêt, {profile_name}."
+            if profile_name
+            else "Optimisez vos contrôles produits et vos recettes sans gluten."
+        )
 
-            st.markdown("## Bienvenue sur Glutify !")
+        headline = (
+            f"## Tableau de bord Glutify · {profile_name}"
+            if profile_name
+            else "## Tableau de bord Glutify"
+        )
 
-            st.write(
-                "Choisissez une section dans le menu de gauche pour effectuer "
-                "vos analyses de produits ou préparer des recettes."
+        st.markdown(headline)
+        st.caption(subtitle)
+
+        st.write(
+            "Glutify centralise vos contrôles de produits, la génération de recettes "
+            "sans gluten et l'audit des décisions médicalisées. L'application combine "
+            "un scanner OpenFoodFacts, votre moteur RAG médical et un historique "
+            "traçable pour accompagner chaque profil au quotidien."
+        )
+
+        st.markdown(
+            """
+            **Sections principales**
+            - `Scanner & Analyse` : recherche textuelle ou scan pour obtenir un verdict médicalisé, justifications et alternatives.
+            - `Historique` : accès immédiat aux analyses archivées, filtres par profil et suivi des verdicts.
+            - `Chef & Recettes` : modes Création/Adaptation avec sauvegarde dans les favoris.
+            - `Favoris` : recettes validées et prêtes à partager ou adapter à nouveau.
+            """
+        )
+
+        st.write(
+            "Toutes les actions sont journalisées par profil. Pensez à vous authentifier pour synchroniser votre historique et vos favoris."
+        )
+
+        if show_login_hint:
+
+            st.info(
+                "Connectez-vous pour déverrouiller l'analyse, les recettes et vos favoris."
             )
-
-            st.write(
-                "Vos historiques et favoris sont associés à votre profil, "
-                "pensez à vous connecter pour les retrouver."
-            )
-
-            if show_login_hint:
-
-
-
-                st.info("Connectez-vous pour deverrouiller l'analyse, les recettes et vos favoris.")
 
 
 
