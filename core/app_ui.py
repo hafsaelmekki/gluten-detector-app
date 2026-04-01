@@ -76,8 +76,8 @@ class AppUI:
             "profils_locaux": [],
             "profiles_cache": None,
             "profil_actif": None,
-            "scanner_choice": "Analyse",
-            "chef_choice": "Créer",
+            "scanner_choice": "Historique",
+            "chef_choice": "Favoris",
             "active_section": "welcome",
             "last_search": None,
             "resultats_recherche": None,
@@ -1962,9 +1962,9 @@ class AppUI:
 
         st.session_state.active_section = "welcome"
 
-        st.session_state.scanner_choice = "Analyse"
+        st.session_state.scanner_choice = "Historique"
 
-        st.session_state.chef_choice = "Créer"
+        st.session_state.chef_choice = "Favoris"
 
     @staticmethod
     def _current_profile_id() -> Optional[str]:
