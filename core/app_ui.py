@@ -114,9 +114,9 @@ class AppUI:
                 return ("none", "", "")
 
             scanner_color = (
-                "#2e7d32"
+                "#0c7a52"
                 if st.session_state.active_section == "scanner"
-                else "#182032"
+                else "#2b4c3f"
             )
 
             st.markdown(
@@ -156,9 +156,9 @@ class AppUI:
             )
 
             chef_color = (
-                "#2e7d32"
+                "#0c7a52"
                 if st.session_state.active_section == "chef"
-                else "#182032"
+                else "#2b4c3f"
             )
 
             st.markdown(
@@ -302,6 +302,8 @@ class AppUI:
 
         self.init_session()
 
+        self._inject_theme_styles()
+
         active_section, sous_scanner, sous_chef = self.render_sidebar()
 
         if active_section == "none":
@@ -359,9 +361,11 @@ class AppUI:
 
                 button[aria-selected="true"] {
 
-                    background-color: #84bf78 !important;
+                    background-color: #0fbf83 !important;
 
-                    color: white !important;
+                    color: #05261b !important;
+
+                    box-shadow: 0 8px 22px rgba(15, 191, 131, 0.35);
 
                 }
 
@@ -1095,6 +1099,124 @@ class AppUI:
         return self.analyzer.generate_recipe(mode, input_text)
 
     @staticmethod
+    def _inject_theme_styles() -> None:
+
+        st.markdown(
+            """
+            <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500&display=swap');
+            :root {
+                --gl-forest: #0b3d2e;
+                --gl-emerald: #0fbf83;
+                --gl-mint: #dff7ec;
+                --gl-cloud: #f5fffb;
+                --gl-charcoal: #122820;
+                --gl-sage: #7fcfaf;
+            }
+            html, body, .stApp {
+                background-color: var(--gl-cloud);
+                color: var(--gl-charcoal);
+                font-family: "Inter","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont;
+            }
+            .block-container {
+                padding-top: 1.5rem;
+                padding-bottom: 2rem;
+                max-width: 1200px;
+            }
+            [data-testid="stSidebar"] {
+                background: linear-gradient(180deg, #f3fff9 0%, #d8faeb 45%, #b2f3d9 100%);
+                color: #0d3f2d;
+                border-right: none;
+                box-shadow: 4px 0 18px rgba(9, 46, 37, 0.18);
+            }
+            [data-testid="stSidebar"] * {
+                color: inherit;
+            }
+            [data-testid="stSidebar"] .stButton>button {
+                border: 1px solid rgba(12, 58, 43, 0.25);
+                color: #0d3f2d;
+                background: rgba(255,255,255,0.35);
+                box-shadow: none;
+            }
+            [data-testid="stSidebar"] .stButton>button:hover {
+                background: rgba(255,255,255,0.55);
+            }
+            .stButton>button {
+                background: linear-gradient(120deg, #0fbf83, #13d49a);
+                color: #052419;
+                border: none;
+                border-radius: 999px;
+                padding: 0.45rem 1.75rem;
+                font-weight: 600;
+                box-shadow: 0 10px 25px rgba(16, 191, 131, 0.35);
+                transition: all 0.15s ease-out;
+            }
+            .stButton>button:hover {
+                color: #02150e;
+                transform: translateY(-1px);
+                box-shadow: 0 14px 32px rgba(16, 191, 131, 0.45);
+            }
+            .stButton>button:active {
+                transform: translateY(0);
+            }
+            .stTabs [data-baseweb="tab-list"] button {
+                border-radius: 999px;
+                border: none;
+                background: rgba(15, 191, 131, 0.12);
+                color: var(--gl-forest);
+                font-weight: 500;
+            }
+            .stTabs [data-baseweb="tab-content"] {
+                background: #ffffff;
+                border-radius: 24px;
+                padding: 1.15rem;
+                box-shadow: 0 20px 45px rgba(9, 40, 30, 0.08);
+            }
+            .stAlert {
+                border-radius: 16px;
+                border-left: 4px solid var(--gl-emerald);
+                background: rgba(15, 191, 131, 0.08);
+                color: var(--gl-forest);
+            }
+            section[data-testid="stSidebar"] button[kind="secondary"] {
+                border-radius: 999px;
+            }
+            input, textarea, div[data-baseweb="input"], .stSelectbox>div>div, .stMultiSelect>div>div {
+                border-radius: 14px !important;
+                border: 1px solid #b8e4d2 !important;
+                background-color: #ffffff !important;
+            }
+            input, textarea {
+                color: var(--gl-charcoal) !important;
+            }
+            .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+                color: var(--gl-forest);
+                font-family: "Space Grotesk","Inter","Segoe UI",sans-serif;
+            }
+            .stMarkdown p {
+                color: var(--gl-charcoal);
+                font-size: 1rem;
+            }
+            div[data-testid="stMetricValue"] {
+                color: var(--gl-emerald);
+            }
+            div[data-testid="stHorizontalBlock"]>div>div {
+                background: #ffffff;
+                border-radius: 20px;
+                box-shadow: 0 20px 45px rgba(7, 32, 24, 0.08);
+                padding: 1rem;
+            }
+            footer, header {visibility: hidden;}
+            ::selection {
+                background: rgba(15, 191, 131, 0.35);
+                color: #042116;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    @staticmethod
     def _submenu_style(highlight_active: bool = True) -> Dict[str, Dict[str, str]]:
 
         styles = {
@@ -1104,28 +1226,31 @@ class AppUI:
                 "margin-top": "4px",
                 "margin-left": "15px",
             },
-            "icon": {"color": "#182032", "font-size": "16px"},
+            "icon": {"color": "#12553e", "font-size": "17px"},
             "nav-link": {
                 "font-size": "14px",
                 "text-align": "left",
                 "margin": "0px",
-                "color": "#182032",
-                "--hover-color": "#e1e1e1",
+                "color": "#0d3f2d",
+                "--hover-color": "rgba(13,63,45,0.08)",
+                "border-radius": "10px",
+                "border": "1px solid transparent",
             },
         }
 
         if highlight_active:
 
             styles["nav-link-selected"] = {
-                "background-color": "#2e7d32",
-                "color": "white",
+                "background-color": "rgba(15, 191, 131, 0.15)",
+                "color": "#0b3a2b",
+                "border": "1px solid rgba(15, 191, 131, 0.35)",
             }
 
         else:
 
             styles["nav-link-selected"] = {
                 "background-color": "transparent",
-                "color": "#182032",
+                "color": "#0d3f2d",
             }
 
         return styles
