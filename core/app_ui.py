@@ -232,17 +232,13 @@ class AppUI:
 
                 st.caption(f"Email : {email}")
 
-            col1, col2 = st.columns([1, 1])
+            logout_clicked = st.button(
+                "🔒 Déco", key="logout_btn", type="secondary"
+            )
 
-            if col1.button("Déconnexion", key="logout_btn"):
+            if logout_clicked:
 
                 self._set_active_profile(None)
-
-                st.rerun()
-
-            if col2.button("Supprimer", key="delete_btn"):
-
-                self._delete_profile(current.get("id"))
 
                 st.rerun()
 
@@ -1135,8 +1131,14 @@ class AppUI:
             [data-testid="stSidebar"] .stButton>button {
                 border: 1px solid rgba(12, 58, 43, 0.25);
                 color: #0d3f2d;
-                background: rgba(255,255,255,0.35);
+                background: transparent;
                 box-shadow: none;
+            }
+            [data-testid="stSidebar"] .stButton {
+                display: inline-flex;
+                align-items: center;
+                margin-right: 8px;
+                margin-bottom: 0.4rem;
             }
             [data-testid="stSidebar"] .stButton>button:hover {
                 background: rgba(255,255,255,0.55);
@@ -1179,7 +1181,25 @@ class AppUI:
                 color: var(--gl-forest);
             }
             section[data-testid="stSidebar"] button[kind="secondary"] {
-                border-radius: 999px;
+                border-radius: 8px;
+                padding: 0.15rem 0.85rem;
+                background: transparent;
+                color: #0c4a35;
+                border: 1px solid rgba(12, 74, 53, 0.35);
+                font-size: 0.7rem;
+                min-height: 1.8rem;
+                box-shadow: none;
+                width: auto;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                margin-right: 6px;
+            }
+            section[data-testid="stSidebar"] button[kind="secondary"]:hover {
+                background: rgba(12, 74, 53, 0.08);
+                border-color: rgba(15, 191, 131, 0.6);
+                color: #09402d;
             }
             input, textarea, div[data-baseweb="input"], .stSelectbox>div>div, .stMultiSelect>div>div {
                 border-radius: 14px !important;
