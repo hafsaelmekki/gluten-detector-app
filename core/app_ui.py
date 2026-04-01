@@ -912,7 +912,15 @@ class AppUI:
 
             user_input = plat
 
-            if col2.button("Générer", key="create_button") and plat:
+            with col2:
+
+                st.markdown(
+                    "<div style='height:1.2rem;'></div>", unsafe_allow_html=True
+                )
+
+                trigger_generate = st.button("Générer", key="create_button")
+
+            if trigger_generate and plat:
 
                 with st.spinner("Création..."):
 
@@ -982,9 +990,14 @@ class AppUI:
 
             return
 
-        col_clear, _ = st.columns([1, 3])
+        clear_clicked = st.button(
+            "Vider les favoris",
+            key="fav_clear_all",
+            help="Supprimer toutes les recettes sauvegardées",
+            type="primary",
+        )
 
-        if col_clear.button("Vider les favoris"):
+        if clear_clicked:
 
             self._clear_favorites()
 
