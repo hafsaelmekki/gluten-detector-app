@@ -233,7 +233,7 @@ class AppUI:
                 st.caption(f"Email : {email}")
 
             logout_clicked = st.button(
-                "🔒 Déco", key="logout_btn", type="secondary"
+                "🔒 Déconnexion", key="logout_btn", type="secondary"
             )
 
             if logout_clicked:
@@ -399,7 +399,11 @@ class AppUI:
 
             query: str = col1.text_input("Nom", key="search_query")
 
-            trigger_search = col2.button("Chercher")
+            with col2:
+
+                st.markdown("<div style='height:0.8rem;'></div>", unsafe_allow_html=True)
+
+                trigger_search = st.button("Chercher")
 
             should_search = (trigger_search and query) or (
                 query and st.session_state.get("last_search") != query
@@ -661,14 +665,77 @@ class AppUI:
 
             return
 
-        rows_html = [
-            "<table style='width:100%; border-collapse:collapse;'>",
-            "<thead><tr><th style='text-align:left;'>Image</th><th style='text-align:left;'>Produit</th>"
-            "<th style='text-align:left;'>Date</th>"
-            "<th style='text-align:left;'>Résultat</th></tr></thead><tbody>",
-        ]
+        st.markdown(
+            """
+            <style>
+            .gl-history-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+                margin-top: 0.5rem;
+                border: 1px solid #d9eee4;
+                border-radius: 14px;
+                overflow: hidden;
+            }
+            .gl-history-grid [data-testid="stVerticalBlock"],
+            .gl-history-grid [data-testid="stHorizontalBlock"] {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .gl-history-image {
+                width: 60px;
+                height: 60px;
+                border-radius: 14px;
+                background: #f0faf6;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+            .gl-history-image img {
+                width: 60px;
+                height: 60px;
+                object-fit: cover;
+            }
+            .gl-history-title {
+                font-weight: 600;
+                color: #0e3023;
+                margin-bottom: 2px;
+            }
+            .gl-history-meta {
+                font-size: 0.85rem;
+                color: #526158;
+            }
+            .gl-history-status-badge {
+                padding: 0.35rem 0.9rem;
+                border-radius: 999px;
+                font-weight: 600;
+                font-size: 0.85rem;
+                text-align: center;
+                min-width: 110px;
+                color: #0b2419;
+            }
+            .gl-history-action button {
+                border-radius: 999px;
+                border: 1px solid rgba(226, 99, 99, 0.4);
+                background: rgba(226, 99, 99, 0.08);
+                color: #a53030;
+                font-size: 0.9rem;
+                padding: 0.25rem 0.9rem;
+            }
+            .gl-history-action button:hover {
+                background: rgba(226, 99, 99, 0.2);
+                border-color: rgba(226, 99, 99, 0.6);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        for entry in history:
+        grid_container = st.container()
+        grid_container.markdown("<div class='gl-history-grid'>", unsafe_allow_html=True)
+
+        for index, entry in enumerate(history):
 
             produit = entry.get("product_name", "Produit")
 
@@ -688,26 +755,78 @@ class AppUI:
 
             color = color_map.get(statut, "#cfd8dc")
 
-            image_html = (
-                f"<img src='{image}' alt='{produit}' height='60'>"
-                if image
-                else ""
-            )
+            entry_id = entry.get("id")
 
-            image_cell = image_html or "&nbsp;"
+            with grid_container:
 
-            rows_html.append(
-                "<tr>"
-                f"<td style='width:80px;text-align:center;vertical-align:middle;'>{image_cell}</td>"
-                f"<td><div>{produit}</div></td>"
-                f"<td>{date}</td>"
-                f"<td style='background:{color};padding:6px;'>{display_status}</td>"
-                "</tr>"
-            )
+                card = st.container()
 
-        rows_html.append("</tbody></table>")
+                col_img, col_body, col_status, col_action = card.columns(
+                    [0.9, 3, 1.2, 0.6]
+                )
 
-        st.markdown("\n".join(rows_html), unsafe_allow_html=True)
+                with col_img:
+
+                    if image:
+
+                        st.markdown(
+                            f"<div class='gl-history-image'><img src='{image}' alt='{produit}'></div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    else:
+
+                        st.markdown(
+                            "<div class='gl-history-image'>??</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                with col_body:
+
+                    st.markdown(
+                        f"<div class='gl-history-title'>{produit}</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                    st.markdown(
+                        f"<div class='gl-history-meta'>{date}</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                with col_status:
+
+                    st.markdown(
+                        f"<div class='gl-history-status-badge' style='background:{color};'>{display_status}</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                with col_action:
+
+                    st.markdown(
+                        "<div class='gl-history-action'>",
+                        unsafe_allow_html=True,
+                    )
+
+                    if entry_id is not None:
+
+                        if st.button(
+                            "🗑️",
+                            key=f"history_delete_{entry_id}",
+                            help="Supprimer cette analyse",
+                        ):
+
+                            self._delete_history_entry(entry_id)
+
+                    else:
+
+                        if st.button(
+                            "🗑️",
+                            key=f"history_delete_placeholder_{index}",
+                            help="Supprimer cette analyse",
+                        ):
+
+                            self._delete_history_entry(None, fallback_index=index)
+
 
     def render_welcome_section(self, show_login_hint: bool = False) -> None:
 
@@ -1130,8 +1249,8 @@ class AppUI:
             }
             [data-testid="stSidebar"] .stButton>button {
                 border: 1px solid rgba(12, 58, 43, 0.25);
-                color: #0d3f2d;
-                background: transparent;
+                color: #ffffff;
+                background: #0c4a35;
                 box-shadow: none;
             }
             [data-testid="stSidebar"] .stButton {
@@ -1183,8 +1302,8 @@ class AppUI:
             section[data-testid="stSidebar"] button[kind="secondary"] {
                 border-radius: 8px;
                 padding: 0.15rem 0.85rem;
-                background: transparent;
-                color: #0c4a35;
+                background: #0c4a35;
+                color: #ffffff;
                 border: 1px solid rgba(12, 74, 53, 0.35);
                 font-size: 0.7rem;
                 min-height: 1.8rem;
@@ -1197,9 +1316,9 @@ class AppUI:
                 margin-right: 6px;
             }
             section[data-testid="stSidebar"] button[kind="secondary"]:hover {
-                background: rgba(12, 74, 53, 0.08);
+                background: #0a3727;
                 border-color: rgba(15, 191, 131, 0.6);
-                color: #09402d;
+                color: #e6fff5;
             }
             input, textarea, div[data-baseweb="input"], .stSelectbox>div>div, .stMultiSelect>div>div {
                 border-radius: 14px !important;
@@ -1551,6 +1670,65 @@ class AppUI:
             for fav in st.session_state.recettes_favorites
             if fav.get("owner_id") not in (None, owner)
         ]
+
+    def _delete_history_entry(
+        self, entry_id: Optional[int], fallback_index: Optional[int] = None
+    ) -> None:
+
+        if entry_id is None:
+
+            history = st.session_state.analysis_history or []
+
+            if fallback_index is not None and 0 <= fallback_index < len(history):
+
+                history.pop(fallback_index)
+
+                st.session_state.analysis_history = history
+
+                st.toast("Analyse retirée localement.")
+
+            else:
+
+                st.warning("Impossible de supprimer cette entrée.")
+
+            return
+
+        if not self.backend_url:
+
+            st.warning(
+                "Connexion au backend requise pour supprimer définitivement une analyse."
+            )
+
+            return
+
+        params = self._backend_user_params()
+
+        if params is None:
+
+            st.info("Connectez-vous pour gérer votre historique.")
+
+            return
+
+        response = self._backend_request(
+            "delete",
+            f"/history/analyses/{entry_id}",
+            params=params,
+            on_error=lambda _: st.error(
+                "Suppression impossible pour cette analyse."
+            ),
+        )
+
+        if isinstance(response, dict):
+
+            history = st.session_state.analysis_history or []
+
+            st.session_state.analysis_history = [
+                row for row in history if row.get("id") != entry_id
+            ]
+
+            st.toast("Analyse supprimée.")
+
+            st.rerun()
 
     def _get_profiles(self) -> List[Dict[str, Any]]:
 
