@@ -209,6 +209,25 @@ def list_analysis_history(
         query = query.filter(AnalysisLog.user_id == user_id)
     return query.limit(limit).all()
 
+@app.delete("/history/analyses/{analysis_id}")
+def delete_analysis_history(
+    analysis_id: int,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_session),
+) -> Dict[str, str]:
+    analysis = db.get(AnalysisLog, analysis_id)
+
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    if user_id is not None and analysis.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not allowed to delete this analysis")
+
+    db.delete(analysis)
+    db.commit()
+
+    return {"status": "deleted"}
+
 
 @app.get("/history/recipes", response_model=List[RecipeLogSchema])
 def list_recipe_history(
