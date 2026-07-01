@@ -17,12 +17,16 @@ DEFAULT_SQLITE_URL = "sqlite:///./glutify.db"
 def _get_database_url() -> str:
     env_url = os.getenv("DATABASE_URL")
     if env_url:
-        return env_url
+        return env_url.strip()
+
     if st is not None:
         try:
-            return st.secrets["DATABASE_URL"]
+            secret_url = st.secrets.get("DATABASE_URL")
+            if secret_url:
+                return str(secret_url).strip()
         except Exception:
             pass
+
     return DEFAULT_SQLITE_URL
 
 
